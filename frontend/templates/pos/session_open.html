@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex-1 flex items-center justify-center bg-[#0F172A] overflow-hidden p-4">
+    <div class="w-full max-w-md bg-[#1E293B] border border-slate-800 rounded p-6 shadow-xl flex flex-col gap-6">
+        <div class="text-center">
+            <h2 class="text-white text-xl font-bold tracking-tight mb-1">OPEN REGISTER</h2>
+            <p class="text-slate-400 text-[10px] uppercase font-mono tracking-wider">Initialize new session</p>
+        </div>
+
+        <form method="POST" action="" class="flex flex-col gap-4">
+            {% csrf_token %}
+            
+            <div class="flex flex-col gap-1">
+                <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Opening Float (Cash in Drawer)</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm">KES</span>
+                    <input type="number" step="0.01" name="opening_float" id="opening_float" required
+                           class="w-full bg-[#0F172A] border border-slate-700 text-white font-mono text-lg pl-12 pr-3 py-2 rounded focus:outline-none focus:border-indigo-500 transition-colors">
+                </div>
+            </div>
+            
+            <div class="flex flex-col gap-1">
+                <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Session Notes (Optional)</label>
+                <textarea name="notes" rows="2"
+                          class="w-full bg-[#0F172A] border border-slate-700 text-white text-sm p-3 rounded focus:outline-none focus:border-indigo-500 transition-colors placeholder-slate-600"
+                          placeholder="e.g. Starting from drawer 1..."></textarea>
+            </div>
+
+            <button type="submit" class="mt-4 w-full h-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold transition-colors">
+                OPEN SESSION
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

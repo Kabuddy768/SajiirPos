@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="flex-1 flex gap-4 overflow-hidden">
+    <!-- Left Panel: Scanner & Cart -->
+    <div class="flex-[3] bg-[#1E293B] border border-slate-800 rounded flex flex-col overflow-hidden">
+        <div class="bg-slate-800/50 p-2 px-4 flex justify-between items-center border-b border-slate-800">
+            <span class="text-xs font-bold text-slate-300 uppercase">Current Sale #<span id="session-display">{{ session.id|default:"OPEN" }}</span></span>
+            <div class="flex gap-2 items-center">
+                <input type="text" id="barcode-input" placeholder="SCAN BARCODE" autofocus class="bg-[#0F172A] border border-slate-700 text-white font-mono text-xs px-2 py-1 rounded w-48 focus:outline-none focus:border-indigo-500 placeholder-slate-600 transition-colors">
+            </div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto">
+            <table class="w-full text-xs text-left font-mono border-collapse" id="cart-table">
+                <thead class="text-slate-500 border-b border-slate-800 sticky top-0 bg-[#1E293B] z-10">
+                    <tr class="bg-slate-900/30">
+                        <th class="p-2 pl-4">ITEM</th>
+                        <th class="p-2 text-right">QTY</th>
+                        <th class="p-2 text-right">PRICE</th>
+                        <th class="p-2 text-right pr-4">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800" id="cart-body">
+                    <!-- Cart items rendered here via JS -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="bg-slate-900/40 p-4 border-t border-slate-800 flex justify-between items-end">
+            <div class="text-[10px] text-slate-500 font-mono" id="status-message">AWAITING INPUT...</div>
+            <div class="flex gap-2">
+                <button onclick="clearCart()" class="h-8 px-3 bg-slate-800 border border-slate-700 text-rose-400 hover:bg-slate-700 hover:text-rose-300 transition-colors rounded text-xs flex items-center font-bold cursor-pointer">VOID</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Totals & Payments -->
+    <div class="w-80 flex flex-col gap-4">
+        <div class="bg-[#1E293B] border border-slate-800 rounded p-4 flex flex-col gap-3">
+            <span class="text-[10px] font-bold text-slate-500 uppercase">Register Totals</span>
+            
+            <div class="space-y-2 font-mono">
+                <div class="flex justify-between text-xs">
+                    <span class="text-slate-400">SUBTOTAL</span>
+                    <span class="text-slate-300" id="cart-subtotal">0.00</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-slate-400">VAT (16%)</span>
+                    <span class="text-slate-300" id="cart-tax">0.00</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-slate-400">DISCOUNT</span>
+                    <span class="text-emerald-400" id="cart-discount">0.00</span>
+                </div>
+                <div class="h-px bg-slate-700 my-2"></div>
+                <div class="flex justify-between text-lg font-bold">
+                    <span class="text-slate-300">TOTAL</span>
+                    <span class="text-white" id="cart-total">0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 bg-[#1E293B] border border-slate-800 rounded p-4 flex flex-col">
+            <span class="text-[10px] font-bold text-slate-500 uppercase mb-3">Payment</span>
+            
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-800 mb-4 text-xs font-bold">
+                <button class="flex-1 pb-2 border-b-2 border-indigo-500 text-indigo-400 payment-tab" onclick="switchPayment('cash')">CASH</button>
+                <button class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-400 payment-tab" onclick="switchPayment('mpesa')">M-PESA</button>
+                <button class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-400 payment-tab" onclick="switchPayment('card')">CARD</button>
+            </div>
+
+            <!-- Cash View -->
+            <div id="payment-cash" class="payment-view flex py-2 flex-col gap-4">
+                <div>
+                    <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1 block">Tendered Amount</label>
+                    <input type="number" id="cash-tendered" placeholder="0.00" class="w-full bg-[#0F172A] border border-slate-700 text-white font-mono text-2xl p-2 rounded focus:outline-none focus:border-emerald-500 transition-colors">
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1 block">Change</label>
+                    <div class="text-2xl font-mono text-amber-400" id="cash-change">0.00</div>
+                </div>
+            </div>
+
+            <!-- M-Pesa View -->
+            <div id="payment-mpesa" class="payment-view hidden py-2 flex-col gap-4">
+                <div>
+                    <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1 block">Customer Phone</label>
+                    <input type="text" id="mpesa-phone" placeholder="2547..." class="w-full bg-[#0F172A] border border-slate-700 text-white font-mono text-lg p-2 rounded focus:outline-none focus:border-indigo-500">
+                </div>
+                <button id="btn-stk-push" onclick="sendStkPush()" class="w-full h-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold transition-colors">SEND STK PUSH</button>
+                <div id="mpesa-status-container" class="hidden p-3 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-slate-400 text-center">
+                    <span id="mpesa-status-text">WAITING FOR CUSTOMER...</span>
+                </div>
+            </div>
+
+            <!-- Card View -->
+            <div id="payment-card" class="payment-view hidden py-2 flex-col gap-4">
+                <div>
+                    <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1 block">Terminal Reference</label>
+                    <input type="text" id="card-reference" placeholder="Ref No..." class="w-full bg-[#0F172A] border border-slate-700 text-white font-mono text-lg p-2 rounded focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <button id="btn-complete-sale" onclick="completeSale()" class="mt-auto w-full h-12 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-bold tracking-wider transition-colors">
+                COMPLETE SALE
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts Configuration -->
+<script>
+    const CONFIG = {
+        branchId: "{{ request.user.tenantuser.branch_id|default:'' }}",
+        sessionId: "{{ session.id }}",
+        apiUrl: "/api/v1/sales/",
+        productsUrl: "/api/v1/products/",
+        mpesaInitiateUrl: "/api/v1/payments/mpesa/initiate/",
+        wsUrl: "ws://" + window.location.host + "/ws/sales/"
+    };
+</script>
+<script src="{% static 'js/pos.js' %}"></script>
+{% endblock %}
