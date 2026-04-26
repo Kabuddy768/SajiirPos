@@ -57,6 +57,7 @@ class Sale(models.Model):
     
     # Offline sync
     client_created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     synced_at = models.DateTimeField(auto_now_add=True)
     is_offline_sale = models.BooleanField(default=False)
     offline_uuid = models.UUIDField(unique=True, default=uuid.uuid4)

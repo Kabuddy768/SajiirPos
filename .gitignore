@@ -1,8 +1,62 @@
-node_modules/
-build/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
 dist/
-coverage/
-.DS_Store
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Django
 *.log
-.env*
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Environment variables
+.env
+.env.local
+.env.production
 !.env.example
+
+# Node
+node_modules/
+coverage/
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Migrations (keep __init__.py but ignore actual migration files if desired)
+# Uncomment below to ignore migrations
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+*.pid

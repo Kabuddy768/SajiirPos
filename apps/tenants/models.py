@@ -27,7 +27,7 @@ class Tenant(TenantMixin):
 class Domain(DomainMixin):
     pass
 
-class TenantUser(models.fields.related.RelatedField if False else models.Model):
+class TenantUser(models.Model):
     ROLE_OWNER = 'owner'
     ROLE_ADMIN = 'admin'
     ROLE_MANAGER = 'manager'
@@ -46,7 +46,8 @@ class TenantUser(models.fields.related.RelatedField if False else models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
-    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True)
+    # branch is NOT here — branches live in tenant schemas.
+    # Assign branches inside tenant-scoped user profile models instead.
     join_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:

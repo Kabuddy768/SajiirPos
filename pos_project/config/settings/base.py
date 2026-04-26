@@ -5,13 +5,14 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-key')
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
 SHARED_APPS = [
     'django_tenants',
     'apps.tenants',
+    'apps.accounts',
     
     'django.contrib.admin',
     'django.contrib.auth',
@@ -23,8 +24,6 @@ SHARED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'channels',
-
-    'apps.accounts',
 ]
 
 TENANT_APPS = [
@@ -60,6 +59,7 @@ DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter', )
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

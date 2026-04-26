@@ -12,5 +12,5 @@ def update_branch_stock(sender, instance, created, **kwargs):
                 branch=instance.branch,
                 defaults={'quantity': 0}
             )
-            branch_stock.quantity += instance.quantity
+            branch_stock.quantity = instance.quantity_after
             branch_stock.save()
