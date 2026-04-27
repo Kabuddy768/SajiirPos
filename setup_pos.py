@@ -54,5 +54,21 @@ def setup():
     else:
         print("Superuser already exists.")
 
+    # 4. Seed Main Tenant Data
+    from django_tenants.utils import schema_context
+    from apps.branches.models import Branch
+    
+    with schema_context('main'):
+        if not Branch.objects.exists():
+            Branch.objects.create(
+                name='Main Store Branch',
+                etims_branch_code='00',
+                address='123 Business Way, Nairobi',
+                is_active=True
+            )
+            print("Default branch created in 'main' tenant.")
+        else:
+            print("Branch already exists in 'main' tenant.")
+
 if __name__ == '__main__':
     setup()

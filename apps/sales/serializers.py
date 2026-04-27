@@ -6,7 +6,7 @@ from apps.payments.models import Payment
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'name', 'barcode', 'price', 'cost_price', 'is_tax_inclusive', 'tax_type', 'is_active']
+        fields = ['id', 'name', 'barcode', 'selling_price', 'cost_price', 'is_tax_inclusive', 'tax_type', 'is_active']
 
 class CartItemSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()

@@ -117,7 +117,7 @@
         branchId: "{{ request.user.tenantuser.branch_id|default:'' }}",
         sessionId: "{{ session.id }}",
         apiUrl: "/api/v1/sales/",
-        productsUrl: "/api/v1/products/",
+        productsUrl: "/api/product-lookup/",
         mpesaInitiateUrl: "/api/v1/payments/mpesa/initiate/",
         wsUrl: "ws://" + window.location.host + "/ws/sales/"
     };

@@ -74,9 +74,9 @@ class ProductLookupViewSet(viewsets.GenericViewSet):
         barcode = request.query_params.get('barcode')
         try:
             product = Product.objects.get(barcode=barcode)
-            return Response(ProductSerializer(product).data)
+            return Response([ProductSerializer(product).data]) # Return as list
         except Product.DoesNotExist:
-            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response([], status=status.HTTP_404_NOT_FOUND) # Return empty list
 
 class CashSessionViewSet(viewsets.ModelViewSet):
     queryset = CashSession.objects.all()
