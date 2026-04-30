@@ -87,20 +87,24 @@ def z_report(request, session_id):
 
 @login_required
 def product_lookup(request):
-    barcode = request.GET.get('barcode')
+    barcode = request.GET.get('barcode', '').strip()
     if not barcode:
-        return JsonResponse({'error': 'No barcode provided'}, status=400)
-        
+        return JsonResponse({'found': False, 'error': 'No barcode'})
     try:
-        product = Product.objects.get(barcode=barcode)
-        return JsonResponse([{
+        # Check active products first
+        product = Product.objects.get(barcode=barcode, is_active=True)
+        return JsonResponse({'found': True, 'product': {
             'id': product.id,
             'name': product.name,
             'selling_price': float(product.selling_price),
+            'cost_price': float(product.cost_price),
             'sku': product.sku,
             'barcode': product.barcode,
             'tax_type': product.tax_type,
-            'is_tax_inclusive': product.is_tax_inclusive
-        }], safe=False)
+            'is_tax_inclusive': product.is_tax_inclusive,
+            'is_weighable': product.is_weighable,
+            'unit': product.sale_unit.short_name if product.sale_unit else 'PCS',
+        }})
     except Product.DoesNotExist:
-        return JsonResponse({'error': 'Product not found'}, status=404)
+        return JsonResponse({'found': False, 'error': 'Not found'})
+

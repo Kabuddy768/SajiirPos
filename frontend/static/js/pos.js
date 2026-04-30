@@ -27,24 +27,21 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchProduct(barcode) {
     setStatus("SEARCHING PRODUCT...", "text-indigo-400");
     try {
-        const res = await fetch(`${CONFIG.productsUrl}?barcode=${barcode}&branch=${CONFIG.branchId}`);
-        if (!res.ok) throw new Error("API Network error");
-        
+        const res = await fetch(`/api/product-lookup/?barcode=${encodeURIComponent(barcode)}`);
         const data = await res.json();
-        const results = data.results || data;
         
-        if (results.length > 0) {
-            addToCart(results[0]);
+        if (data.found) {
+            addToCart(data.product);
             setStatus("PRODUCT ADDED.", "text-emerald-400");
         } else {
             setStatus("PRODUCT NOT FOUND.", "text-rose-400");
         }
     } catch (err) {
-        // Offline handling
-        setStatus("OFFLINE: PRODUCT CACHE REQUIRED.", "text-amber-400");
-        // In real app we would check IndexedDB or cache here
+        setStatus("OFFLINE — PRODUCT CACHE NEEDED.", "text-amber-400");
+        console.error("Fetch product error:", err);
     }
 }
+
 
 // Set status message
 function setStatus(msg, colorClass = "text-slate-500") {
