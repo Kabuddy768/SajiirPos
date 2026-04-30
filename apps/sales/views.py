@@ -7,9 +7,14 @@ from .serializers import SaleSerializer, SaleCreateSerializer, CashSessionSerial
 from apps.products.models import Product
 from .services import SaleService
 
+from rest_framework.permissions import IsAuthenticated
+from apps.tenants.permissions import IsCashier
+from apps.customers.models import Customer
+
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
+    permission_classes = [IsAuthenticated, IsCashier]
 
     def create(self, request, *args, **kwargs):
         serializer = SaleCreateSerializer(data=request.data)
@@ -17,6 +22,13 @@ class SaleViewSet(viewsets.ModelViewSet):
         
         data = serializer.validated_data
         
+        customer = None
+        if data.get('customer_id'):
+            try:
+                customer = Customer.objects.get(id=data['customer_id'])
+            except Customer.DoesNotExist:
+                pass
+
         cart = []
         for item in data['cart']:
             try:
@@ -36,8 +48,10 @@ class SaleViewSet(viewsets.ModelViewSet):
                 'session_id': data['session_id'],
                 'payments': data['payments'],
                 'cashier_id': request.user.id,
+                'customer_id': data.get('customer_id'),
                 'client_created_at': data['client_created_at'],
-                'offline_uuid': data['offline_uuid']
+                'offline_uuid': data['offline_uuid'],
+                'manager_override': data.get('manager_override', False)
             }, timeout=600)
             
             mpesa_payment = next(p for p in data['payments'] if p['method'] == 'mpesa')
@@ -48,6 +62,11 @@ class SaleViewSet(viewsets.ModelViewSet):
                 amount=mpesa_payment['amount'],
                 reference=str(data['offline_uuid'])
             )
+            
+            checkout_id = response.get('CheckoutRequestID')
+            if checkout_id:
+                cache.set(f"mpesa_checkout_{checkout_id}", data['offline_uuid'], timeout=600)
+
             return Response({'status': 'pending_mpesa', 'mpesa_response': response}, status=status.HTTP_202_ACCEPTED)
 
         try:
@@ -56,18 +75,30 @@ class SaleViewSet(viewsets.ModelViewSet):
                 session_id=data['session_id'],
                 payments=data['payments'],
                 cashier=request.user,
-                customer=None, 
+                customer=customer, 
                 client_created_at=data['client_created_at'],
                 offline_uuid=data['offline_uuid'],
-                schema_name=getattr(request.tenant, 'schema_name', 'public') if hasattr(request, 'tenant') else 'public'
+                schema_name=getattr(request.tenant, 'schema_name', 'public') if hasattr(request, 'tenant') else 'public',
+                manager_override=data.get('manager_override', False)
             )
             return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['post'])
+    def void(self, request, pk=None):
+        sale = self.get_object()
+        reason = request.data.get('reason', '')
+        try:
+            SaleService.void(sale, voided_by=request.user, reason=reason)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(SaleSerializer(sale).data)
+
 class ProductLookupViewSet(viewsets.GenericViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsCashier]
 
     @action(detail=False, methods=['get'])
     def by_barcode(self, request):
@@ -81,3 +112,4 @@ class ProductLookupViewSet(viewsets.GenericViewSet):
 class CashSessionViewSet(viewsets.ModelViewSet):
     queryset = CashSession.objects.all()
     serializer_class = CashSessionSerializer
+    permission_classes = [IsAuthenticated, IsCashier]

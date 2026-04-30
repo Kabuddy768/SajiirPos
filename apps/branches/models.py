@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class Branch(models.Model):
     name = models.CharField(max_length=150)
@@ -11,3 +12,11 @@ class Branch(models.Model):
 
     def __str__(self):
         return self.name
+
+class StaffProfile(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profiles')
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='staff_members')
+    is_active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"{self.user.email} at {self.branch.name}"

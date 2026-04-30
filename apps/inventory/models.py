@@ -45,3 +45,44 @@ class StockMovement(models.Model):
 
     def __str__(self):
         return f"{self.reason} - {self.product.name} ({self.quantity})"
+
+
+class StockTransfer(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('approved', 'Approved'),
+        ('shipped', 'Shipped'),
+        ('received', 'Received'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    transfer_number = models.CharField(max_length=100, unique=True)
+    from_branch = models.ForeignKey('branches.Branch', on_delete=models.PROTECT, related_name='transfers_out')
+    to_branch = models.ForeignKey('branches.Branch', on_delete=models.PROTECT, related_name='transfers_in')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    notes = models.TextField(blank=True)
+
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='transfer_requests')
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfer_approvals')
+    shipped_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfer_shipments')
+    received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfer_receipts')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.transfer_number}: {self.from_branch} → {self.to_branch}"
+
+
+class StockTransferItem(models.Model):
+    transfer = models.ForeignKey(StockTransfer, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('products.Product', on_delete=models.PROTECT, related_name='transfer_items')
+    quantity_requested = models.DecimalField(max_digits=12, decimal_places=3)
+    quantity_shipped = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    quantity_received = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    batch = models.ForeignKey('products.ProductBatch', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.product.name} — req: {self.quantity_requested}"

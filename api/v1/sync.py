@@ -5,6 +5,8 @@ from apps.sales.models import Sale
 from apps.sales.services import SaleService
 from apps.products.models import Product
 from decimal import Decimal
+from apps.customers.models import Customer
+from apps.products.models import ProductBatch
 
 class SyncSalesView(APIView):
     def post(self, request, *args, **kwargs):
@@ -30,24 +32,37 @@ class SyncSalesView(APIView):
                 cart = []
                 for item in cart_payload:
                     product = Product.objects.get(id=item['product_id'])
+                    
+                    # Batch lookup
+                    batch = None
+                    batch_id = item.get('batch_id')
+                    if batch_id:
+                        batch = ProductBatch.objects.filter(id=batch_id).first()
+
                     cart.append({
                         'product': product,
                         'quantity': Decimal(str(item['quantity'])),
                         'unit_price': Decimal(str(item['unit_price'])),
                         'discount_amount': Decimal(str(item.get('discount_amount', '0.0'))),
-                        'batch': None # Lookup actual batch model if passed
+                        'batch': batch
                     })
                 
-                # Assume simpler passed structures for others for demo
+                # Customer lookup
+                customer = None
+                customer_id = sale_data.get('customer_id')
+                if customer_id:
+                    customer = Customer.objects.filter(id=customer_id).first()
+
                 sale = SaleService.complete(
                     cart=cart,
                     session_id=sale_data.get('session_id'),
                     payments=sale_data.get('payments', []),
                     cashier=request.user,
-                    customer=None, # Needs lookup
+                    customer=customer,
                     client_created_at=sale_data.get('client_created_at'),
                     offline_uuid=offline_uuid,
-                    schema_name=schema_name
+                    schema_name=schema_name,
+                    manager_override=sale_data.get('manager_override', False)
                 )
                 
                 results.append({

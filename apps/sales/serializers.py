@@ -28,6 +28,7 @@ class SaleCreateSerializer(serializers.Serializer):
     offline_uuid = serializers.UUIDField()
     cart = CartItemSerializer(many=True)
     payments = PaymentInputSerializer(many=True)
+    manager_override = serializers.BooleanField(required=False, default=False)
 
 class SaleSerializer(serializers.ModelSerializer):
     class Meta:

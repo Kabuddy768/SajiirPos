@@ -1,3 +1,15 @@
+"""
+eTIMS Celery Task — Background invoice signing
+================================================
+
+This task is called after every completed sale to sign the invoice with KRA.
+Currently uses a STUB ETIMSClient (see apps/compliance/etims.py).
+
+TODO: Once real KRA eTIMS credentials are obtained, the ETIMSClient stub
+will be replaced with actual API calls. This task requires NO changes —
+only the ETIMSClient class needs to be updated.
+"""
+
 from celery import shared_task
 from django_tenants.utils import schema_context
 from apps.sales.models import Sale

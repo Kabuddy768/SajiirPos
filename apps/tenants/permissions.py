@@ -40,17 +40,19 @@ class RequiresBranch(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
             
-        try:
-            tenant = request.tenant
-            tenant_user = TenantUser.objects.get(user=request.user, tenant=tenant, is_active=True)
-        except (AttributeError, TenantUser.DoesNotExist):
-            return False
-            
-        if tenant_user.branch is None:
+        role = get_user_role(request)
+        if role in [TenantUser.ROLE_OWNER, TenantUser.ROLE_ADMIN]:
             return True
+            
+        from apps.branches.models import StaffProfile
+        try:
+            profile = StaffProfile.objects.get(user=request.user, is_active=True)
+            user_branch = profile.branch
+        except StaffProfile.DoesNotExist:
+            return False
             
         requested_branch_id = request.data.get('branch') or request.query_params.get('branch')
         if not requested_branch_id:
             return False
             
-        return str(tenant_user.branch.id) == str(requested_branch_id)
+        return str(user_branch.id) == str(requested_branch_id)

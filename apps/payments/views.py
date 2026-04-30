@@ -17,7 +17,7 @@ class MpesaViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def callback(self, request):
-        # M-Pesa callback processor
-        # In a real app, this parses Daraja callback, gets the offline_uuid from cache,
-        # and calls SaleService.complete()
-        return Response({'status': 'success'})
+        from workers.mpesa_callbacks import process_mpesa_callback
+        schema_name = getattr(request.tenant, 'schema_name', 'public') if hasattr(request, 'tenant') else 'public'
+        process_mpesa_callback.delay(request.data, schema_name)
+        return Response({'status': 'received'})

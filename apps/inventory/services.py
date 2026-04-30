@@ -3,6 +3,8 @@ from django.db import transaction
 from django.utils import timezone
 from .models import BranchStock, StockMovement
 
+from apps.audit.utils import log_action
+
 class InsufficientStockError(Exception):
     pass
 
@@ -38,6 +40,18 @@ class StockService:
                 reference_id=reference_id,
                 batch=batch,
                 performed_by=user
+            )
+
+            # Log the action
+            log_action(
+                user=user,
+                action='adjust_stock',
+                model_name='StockMovement',
+                object_id=movement.id,
+                branch=branch,
+                before={'quantity': float(quantity_before)},
+                after={'quantity': float(quantity_after)},
+                notes=f"Reason: {reason}, Ref: {reference_id}"
             )
 
             return movement

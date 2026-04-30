@@ -6,6 +6,7 @@ from apps.inventory.services import StockService, InsufficientStockError
 from .models import Sale, SaleItem, CashSession
 from apps.payments.models import Payment
 from workers.etims_tasks import sign_sale_etims
+from apps.audit.utils import log_action
 
 class SessionClosedError(Exception):
     pass
@@ -15,7 +16,7 @@ class DuplicateSaleError(Exception):
 
 class SaleService:
     @staticmethod
-    def complete(cart, session_id, payments, cashier, customer, client_created_at, offline_uuid, schema_name):
+    def complete(cart, session_id, payments, cashier, customer, client_created_at, offline_uuid, schema_name, manager_override=False):
         """
         Complete a sale and its payments, ensuring idempotency via offline_uuid.
         """
@@ -37,11 +38,12 @@ class SaleService:
             if existing_sale:
                 return existing_sale
 
-            # 3. Generate sale number: {BRANCH_CODE}-{YYYYMMDD}-{NNNN}
+            # 3. Generate sale number: {BRANCH_CODE}-{YYYYMMDD}-{UNIQUE_SUFFIX}
             branch = session.branch
             date_str = timezone.localtime().strftime('%Y%m%d')
-            count_today = Sale.objects.filter(branch=branch, created_at__date=timezone.localtime().date()).count() + 1
-            sale_number = f"{branch.etims_branch_code or 'BR'}-{date_str}-{count_today:04d}"
+            # Use UUID to avoid race conditions and ensure uniqueness
+            unique_suffix = uuid.uuid4().hex[:6].upper()
+            sale_number = f"{branch.etims_branch_code or 'BR'}-{date_str}-{unique_suffix}"
 
             # 4. Compute totals
             subtotal = Decimal('0.00')
@@ -61,26 +63,30 @@ class SaleService:
                 price = Decimal(str(item['unit_price']))
                 disc = Decimal(str(item.get('discount_amount', '0.00')))
                 
-                line_total = (qty * price) - disc
+                # Price validation
+                if price != product.selling_price and not manager_override:
+                    raise ValueError(f"Price mismatch for {product.name}. Expected {product.selling_price}, got {price}")
+                
+                line_subtotal = (qty * price) - disc
+                item_tax = Decimal('0.00')
+                
+                # VAT calculation following KRA rules
+                if product.tax_type == 'V':
+                    if product.is_tax_inclusive:
+                        item_tax = line_subtotal - (line_subtotal / Decimal('1.16'))
+                        taxable_amount += (line_subtotal - item_tax)
+                        line_total = line_subtotal
+                    else:
+                        item_tax = line_subtotal * Decimal('0.16')
+                        taxable_amount += line_subtotal
+                        line_total = line_subtotal + item_tax
+                else:
+                    taxable_amount += line_subtotal
+                    line_total = line_subtotal
                 
                 subtotal += (qty * price)
                 discount += disc
                 total += line_total
-                
-                # Simple VAT calculation (Assuming inclusive for now, but following rules)
-                # KRA ETIMS: Taxable amount vs Tax amount
-                item_tax = Decimal('0.00')
-                if product.tax_type == 'V':
-                    if product.is_tax_inclusive:
-                        item_tax = line_total - (line_total / Decimal('1.16'))
-                        taxable_amount += (line_total - item_tax)
-                    else:
-                        item_tax = line_total * Decimal('0.16')
-                        taxable_amount += line_total
-                        total += item_tax
-                else:
-                    taxable_amount += line_total
-                
                 tax_amount += item_tax
 
                 processed_items.append({
@@ -90,7 +96,7 @@ class SaleService:
                     'cost_price': product.cost_price,
                     'discount_amount': disc,
                     'tax_amount': item_tax,
-                    'line_total': line_total + (item_tax if not product.is_tax_inclusive else 0),
+                    'line_total': line_total,
                     'tax_type': product.tax_type,
                     'batch': item.get('batch')
                 })
@@ -160,8 +166,87 @@ class SaleService:
                 customer.loyalty_points += points_earned
                 customer.save()
 
-        # Post-transaction: 11. Queue eTIMS
+            # 11. Log action
+            log_action(
+                user=cashier,
+                action='create',
+                model_name='Sale',
+                object_id=sale.id,
+                branch=branch,
+                after={'total': float(total), 'sale_number': sale_number}
+            )
+
+        # Post-transaction: 12. Queue eTIMS
         if sale.pk:
             sign_sale_etims.delay(sale.pk, schema_name)
             
         return sale
+
+    @staticmethod
+    def void(sale, voided_by, reason=''):
+        """
+        Void a completed sale.
+        Rules:
+        - Only 'completed' sales can be voided.
+        - Voids are only allowed on the same calendar day as the sale.
+        - All stock deductions are reversed (items go back into BranchStock).
+        - All payments are marked as 'refunded'.
+        - The sale status is set to 'voided'.
+        """
+        if sale.status != 'completed':
+            raise ValueError(
+                f"Cannot void sale {sale.sale_number} — status is '{sale.status}'."
+            )
+
+        # Same-day check
+        sale_date = sale.created_at.date()
+        today = timezone.localtime().date()
+        if sale_date != today:
+            raise ValueError(
+                f"Cannot void sale {sale.sale_number} — it was created on "
+                f"{sale_date}, but today is {today}. Only same-day voids are allowed."
+            )
+
+        with transaction.atomic():
+            # 1. Reverse stock for every SaleItem
+            for item in sale.items.select_related('product'):
+                StockService.adjust(
+                    product=item.product,
+                    branch=sale.branch,
+                    quantity=item.quantity,  # positive = add back
+                    reason='adjustment',
+                    reference_id=f"VOID-{sale.sale_number}",
+                    user=voided_by,
+                    batch=item.batch,
+                    notes=f"Void reversal for sale {sale.sale_number}",
+                )
+
+            # 2. Mark all payments as refunded
+            sale.payments.update(status='refunded')
+
+            # 3. Reverse loyalty points
+            if sale.customer:
+                points_to_remove = int(sale.total_amount // Decimal('100'))
+                sale.customer.loyalty_points = max(
+                    0, sale.customer.loyalty_points - points_to_remove
+                )
+                sale.customer.save()
+
+            # 4. Update sale status
+            sale.status = 'voided'
+            sale.save()
+
+            # 5. Audit log
+            log_action(
+                user=voided_by,
+                action='void_sale',
+                model_name='Sale',
+                object_id=sale.id,
+                branch=sale.branch,
+                before={'status': 'completed', 'total': float(sale.total_amount)},
+                after={'status': 'voided'},
+                notes=reason,
+            )
+
+        return sale
+
