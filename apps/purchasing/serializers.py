@@ -46,12 +46,15 @@ class GoodsReceivedNoteSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items')
         user = self.context['request'].user
         validated_data['received_by'] = user
-        grn = GoodsReceivedNote.objects.create(**validated_data)
-        for item_data in items_data:
-            GRNItem.objects.create(grn=grn, **item_data)
         
-        # Call service to apply stock/batch
-        from .services import GRNService
-        GRNService.receive(grn)
+        from django.db import transaction
+        with transaction.atomic():
+            grn = GoodsReceivedNote.objects.create(**validated_data)
+            for item_data in items_data:
+                GRNItem.objects.create(grn=grn, **item_data)
+            
+            # Call service to apply stock/batch
+            from .services import GRNService
+            GRNService.receive(grn)
         
         return grn

@@ -51,7 +51,11 @@ class RequiresBranch(permissions.BasePermission):
         except StaffProfile.DoesNotExist:
             return False
             
-        requested_branch_id = request.data.get('branch') or request.query_params.get('branch')
+        if request.method in permissions.SAFE_METHODS:
+            requested_branch_id = request.query_params.get('branch')
+        else:
+            requested_branch_id = request.data.get('branch') or request.query_params.get('branch')
+            
         if requested_branch_id:
             return str(user_branch.id) == str(requested_branch_id)
         return True
