@@ -16,96 +16,119 @@ class DuplicateSaleError(Exception):
 
 class SaleService:
     @staticmethod
+    def _validate_session(session_id, cashier):
+        try:
+            session = CashSession.objects.get(id=session_id)
+        except CashSession.DoesNotExist:
+            raise ValueError("Invalid session.")
+            
+        if session.status != 'open':
+            raise SessionClosedError("The cash session is closed.")
+        
+        if session.cashier != cashier:
+            raise ValueError("Cashier mismatch on session.")
+            
+        return session
+
+    @staticmethod
+    def _generate_sale_number(branch):
+        date_str = timezone.localtime().strftime('%Y%m%d')
+        unique_suffix = uuid.uuid4().hex[:6].upper()
+        return f"{branch.etims_branch_code or 'BR'}-{date_str}-{unique_suffix}"
+
+    @staticmethod
+    def _process_cart(cart, manager_override):
+        subtotal = Decimal('0.00')
+        discount = Decimal('0.00')
+        taxable_amount = Decimal('0.00')
+        tax_amount = Decimal('0.00')
+        total = Decimal('0.00')
+        processed_items = []
+
+        for item in cart:
+            product = item['product']
+            if not product.is_active:
+                raise ValueError(f"Product {product.name} is not active.")
+            
+            qty = Decimal(str(item['quantity']))
+            price = Decimal(str(item['unit_price']))
+            disc = Decimal(str(item.get('discount_amount', '0.00')))
+            
+            if price != product.selling_price and not manager_override:
+                raise ValueError(f"Price mismatch for {product.name}. Expected {product.selling_price}, got {price}")
+            
+            line_subtotal = (qty * price) - disc
+            item_tax = Decimal('0.00')
+            
+            if product.tax_type == 'V':
+                if product.is_tax_inclusive:
+                    item_tax = line_subtotal - (line_subtotal / Decimal('1.16'))
+                    taxable_amount += (line_subtotal - item_tax)
+                    line_total = line_subtotal
+                else:
+                    item_tax = line_subtotal * Decimal('0.16')
+                    taxable_amount += line_subtotal
+                    line_total = line_subtotal + item_tax
+            else:
+                taxable_amount += line_subtotal
+                line_total = line_subtotal
+            
+            subtotal += (qty * price)
+            discount += disc
+            total += line_total
+            tax_amount += item_tax
+
+            processed_items.append({
+                'product': product,
+                'quantity': qty,
+                'unit_price': price,
+                'cost_price': product.cost_price,
+                'discount_amount': disc,
+                'tax_amount': item_tax,
+                'line_total': line_total,
+                'tax_type': product.tax_type,
+                'batch': item.get('batch')
+            })
+
+        return processed_items, subtotal, discount, taxable_amount, tax_amount, total
+
+    @staticmethod
+    def _create_payments(sale, payments):
+        for p in payments:
+            status = 'pending' if p['method'] == 'mpesa' else 'confirmed'
+            Payment.objects.create(
+                sale=sale,
+                method=p['method'],
+                amount=Decimal(str(p['amount'])),
+                status=status,
+                mpesa_phone=p.get('mpesa_phone', ''),
+                card_reference=p.get('card_reference', '')
+            )
+
+    @staticmethod
+    def _handle_loyalty_points(customer, total):
+        if customer:
+            points_earned = int(total // Decimal('100'))
+            customer.loyalty_points += points_earned
+            customer.save()
+
+    @staticmethod
     def complete(cart, session_id, payments, cashier, customer, client_created_at, offline_uuid, schema_name, manager_override=False):
         """
         Complete a sale and its payments, ensuring idempotency via offline_uuid.
         """
         with transaction.atomic():
-            # 1. Validate session
-            try:
-                session = CashSession.objects.get(id=session_id)
-            except CashSession.DoesNotExist:
-                raise ValueError("Invalid session.")
-                
-            if session.status != 'open':
-                raise SessionClosedError("The cash session is closed.")
+            session = SaleService._validate_session(session_id, cashier)
             
-            if session.cashier != cashier:
-                raise ValueError("Cashier mismatch on session.")
-
-            # 2. Validate offline_uuid idempotency
             existing_sale = Sale.objects.filter(offline_uuid=offline_uuid).first()
             if existing_sale:
                 return existing_sale
 
-            # 3. Generate sale number: {BRANCH_CODE}-{YYYYMMDD}-{UNIQUE_SUFFIX}
             branch = session.branch
-            date_str = timezone.localtime().strftime('%Y%m%d')
-            # Use UUID to avoid race conditions and ensure uniqueness
-            unique_suffix = uuid.uuid4().hex[:6].upper()
-            sale_number = f"{branch.etims_branch_code or 'BR'}-{date_str}-{unique_suffix}"
-
-            # 4. Compute totals
-            subtotal = Decimal('0.00')
-            discount = Decimal('0.00')
-            taxable_amount = Decimal('0.00')
-            tax_amount = Decimal('0.00')
-            total = Decimal('0.00')
-
-            # We process items and keep them in a processed list to create them later
-            processed_items = []
-            for item in cart:
-                product = item['product']
-                if not product.is_active:
-                    raise ValueError(f"Product {product.name} is not active.")
-                
-                qty = Decimal(str(item['quantity']))
-                price = Decimal(str(item['unit_price']))
-                disc = Decimal(str(item.get('discount_amount', '0.00')))
-                
-                # Price validation
-                if price != product.selling_price and not manager_override:
-                    raise ValueError(f"Price mismatch for {product.name}. Expected {product.selling_price}, got {price}")
-                
-                line_subtotal = (qty * price) - disc
-                item_tax = Decimal('0.00')
-                
-                # VAT calculation following KRA rules
-                if product.tax_type == 'V':
-                    if product.is_tax_inclusive:
-                        item_tax = line_subtotal - (line_subtotal / Decimal('1.16'))
-                        taxable_amount += (line_subtotal - item_tax)
-                        line_total = line_subtotal
-                    else:
-                        item_tax = line_subtotal * Decimal('0.16')
-                        taxable_amount += line_subtotal
-                        line_total = line_subtotal + item_tax
-                else:
-                    taxable_amount += line_subtotal
-                    line_total = line_subtotal
-                
-                subtotal += (qty * price)
-                discount += disc
-                total += line_total
-                tax_amount += item_tax
-
-                processed_items.append({
-                    'product': product,
-                    'quantity': qty,
-                    'unit_price': price,
-                    'cost_price': product.cost_price,
-                    'discount_amount': disc,
-                    'tax_amount': item_tax,
-                    'line_total': line_total,
-                    'tax_type': product.tax_type,
-                    'batch': item.get('batch')
-                })
-
-            # Check total vs payments
-            payment_total = sum(Decimal(str(p['amount'])) for p in payments)
-            # In a real app we'd strict-check payment_total >= total.
+            sale_number = SaleService._generate_sale_number(branch)
             
-            # 5. Create Sale
+            processed_items, subtotal, discount, taxable_amount, tax_amount, total = SaleService._process_cart(cart, manager_override)
+
             sale = Sale.objects.create(
                 sale_number=sale_number,
                 session=session,
@@ -120,10 +143,9 @@ class SaleService:
                 status='completed',
                 client_created_at=client_created_at,
                 offline_uuid=offline_uuid,
-                is_offline_sale=False # Determined elsewhere if needed
+                is_offline_sale=False
             )
 
-            # 6. Create SaleItems & 9. Adjust Stock
             for p_item in processed_items:
                 SaleItem.objects.create(
                     sale=sale,
@@ -148,25 +170,9 @@ class SaleService:
                     batch=p_item['batch']
                 )
 
-            # 7. Create Payments
-            for p in payments:
-                status = 'pending' if p['method'] == 'mpesa' else 'confirmed'
-                Payment.objects.create(
-                    sale=sale,
-                    method=p['method'],
-                    amount=Decimal(str(p['amount'])),
-                    status=status,
-                    mpesa_phone=p.get('mpesa_phone', ''),
-                    card_reference=p.get('card_reference', '')
-                )
+            SaleService._create_payments(sale, payments)
+            SaleService._handle_loyalty_points(customer, total)
 
-            # 10. Loyalty points
-            if customer:
-                points_earned = int(total // Decimal('100'))
-                customer.loyalty_points += points_earned
-                customer.save()
-
-            # 11. Log action
             log_action(
                 user=cashier,
                 action='create',
@@ -176,7 +182,6 @@ class SaleService:
                 after={'total': float(total), 'sale_number': sale_number}
             )
 
-        # Post-transaction: 12. Queue eTIMS
         if sale.pk:
             sign_sale_etims.delay(sale.pk, schema_name)
             
@@ -186,19 +191,10 @@ class SaleService:
     def void(sale, voided_by, reason=''):
         """
         Void a completed sale.
-        Rules:
-        - Only 'completed' sales can be voided.
-        - Voids are only allowed on the same calendar day as the sale.
-        - All stock deductions are reversed (items go back into BranchStock).
-        - All payments are marked as 'refunded'.
-        - The sale status is set to 'voided'.
         """
         if sale.status != 'completed':
-            raise ValueError(
-                f"Cannot void sale {sale.sale_number} — status is '{sale.status}'."
-            )
+            raise ValueError(f"Cannot void sale {sale.sale_number} — status is '{sale.status}'.")
 
-        # Same-day check
         sale_date = sale.created_at.date()
         today = timezone.localtime().date()
         if sale_date != today:
@@ -208,12 +204,11 @@ class SaleService:
             )
 
         with transaction.atomic():
-            # 1. Reverse stock for every SaleItem
             for item in sale.items.select_related('product'):
                 StockService.adjust(
                     product=item.product,
                     branch=sale.branch,
-                    quantity=item.quantity,  # positive = add back
+                    quantity=item.quantity,
                     reason='adjustment',
                     reference_id=f"VOID-{sale.sale_number}",
                     user=voided_by,
@@ -221,22 +216,16 @@ class SaleService:
                     notes=f"Void reversal for sale {sale.sale_number}",
                 )
 
-            # 2. Mark all payments as refunded
             sale.payments.update(status='refunded')
 
-            # 3. Reverse loyalty points
             if sale.customer:
                 points_to_remove = int(sale.total_amount // Decimal('100'))
-                sale.customer.loyalty_points = max(
-                    0, sale.customer.loyalty_points - points_to_remove
-                )
+                sale.customer.loyalty_points = max(0, sale.customer.loyalty_points - points_to_remove)
                 sale.customer.save()
 
-            # 4. Update sale status
             sale.status = 'voided'
             sale.save()
 
-            # 5. Audit log
             log_action(
                 user=voided_by,
                 action='void_sale',

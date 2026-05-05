@@ -18,10 +18,12 @@ def session_open(request):
 
     if request.method == 'POST':
         opening_float = request.POST.get('opening_float', 0)
-        # Real logic: user should select a branch or it should be fixed for the terminal
-        branch = Branch.objects.first() 
-        if not branch:
-            return render(request, 'pos/session_open.html', {'error': 'No branch configured'})
+        from apps.branches.models import StaffProfile
+        try:
+            profile = StaffProfile.objects.get(user=request.user, is_active=True)
+            branch = profile.branch
+        except StaffProfile.DoesNotExist:
+            return render(request, 'pos/session_open.html', {'error': 'User not assigned to a branch'})
             
         session = CashSession.objects.create(
             branch=branch,

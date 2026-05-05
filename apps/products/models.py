@@ -57,6 +57,12 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        super().clean()
+        if self.selling_price < self.cost_price:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Selling price cannot be less than cost price.")
+
 class ProductBatch(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='batches')
     branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, related_name='product_batches')

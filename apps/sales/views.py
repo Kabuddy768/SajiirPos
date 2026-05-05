@@ -95,6 +95,32 @@ class SaleViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(SaleSerializer(sale).data)
 
+    @action(detail=True, methods=['get'])
+    def receipt(self, request, pk=None):
+        sale = self.get_object()
+        
+        receipt_text = f"=== {sale.branch.name} ===\n"
+        receipt_text += f"Sale #: {sale.sale_number}\n"
+        receipt_text += f"Date: {sale.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        receipt_text += f"Cashier: {sale.cashier.username}\n"
+        receipt_text += "--------------------------\n"
+        
+        for item in sale.items.all():
+            receipt_text += f"{item.product.name[:15]:<15} {item.quantity} x {item.unit_price}\n"
+            receipt_text += f"Total: {item.line_total:>20}\n"
+            
+        receipt_text += "--------------------------\n"
+        receipt_text += f"Subtotal: {sale.subtotal:>16}\n"
+        receipt_text += f"Tax: {sale.tax_amount:>21}\n"
+        receipt_text += f"TOTAL: {sale.total_amount:>19}\n"
+        receipt_text += "==========================\n"
+        
+        return Response({
+            'text': receipt_text,
+            'sale_id': sale.id,
+            'sale_number': sale.sale_number
+        })
+
 class ProductLookupViewSet(viewsets.GenericViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer

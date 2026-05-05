@@ -5,9 +5,9 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-key')
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 SHARED_APPS = [
     'django_tenants',
@@ -24,6 +24,7 @@ SHARED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'channels',
+    'corsheaders',
 ]
 
 TENANT_APPS = [
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -115,7 +117,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day'
+    }
 }
+
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000').split(',')
 
 from datetime import timedelta
 SIMPLE_JWT = {
@@ -146,6 +159,10 @@ CELERY_BEAT_SCHEDULE = {
     'check-expiry-daily': {
         'task': 'workers.expiry_check.check_expiry_dates',
         'schedule': crontab(hour=7, minute=0),
+    },
+    'check-inventory-levels-hourly': {
+        'task': 'workers.inventory_alerts.check_inventory_levels',
+        'schedule': crontab(minute=0),
     }
 }
 

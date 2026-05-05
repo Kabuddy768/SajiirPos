@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Manager Dashboard</h2>
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Daily Sales</h5>
+                    <button class="btn btn-primary" onclick="loadReport('sales_summary')">Load Sales Summary</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Inventory Health</h5>
+                    <button class="btn btn-primary" onclick="loadReport('inventory_valuation')">Load Inventory Valuation</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">P&L Report</h5>
+                    <button class="btn btn-primary" onclick="loadReport('profit_loss')">Load Profit & Loss</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-5" id="report-results">
+        <!-- Results will be injected here via JS -->
+    </div>
+</div>
+
+<script>
+    function loadReport(reportType) {
+        let endpoint = `/api/v1/reports/${reportType}/`;
+        if (reportType === 'profit_loss') {
+            endpoint = `/api/v1/reports/pl_statement/`;
+        }
+        fetch(endpoint, {
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token') // Or rely on session
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('report-results').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        })
+        .catch(err => {
+            document.getElementById('report-results').innerHTML = `<div class="alert alert-danger">Failed to load report: ${err}</div>`;
+        });
+    }
+</script>
+{% endblock %}

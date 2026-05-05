@@ -7,8 +7,12 @@ from apps.products.models import Product
 from decimal import Decimal
 from apps.customers.models import Customer
 from apps.products.models import ProductBatch
+from rest_framework.permissions import IsAuthenticated
+from apps.tenants.permissions import RequiresBranch, IsCashier
 
 class SyncSalesView(APIView):
+    permission_classes = [IsAuthenticated, RequiresBranch, IsCashier]
+
     def post(self, request, *args, **kwargs):
         payload = request.data
         sales_data = payload.get('sales', [])

@@ -52,7 +52,25 @@ class RequiresBranch(permissions.BasePermission):
             return False
             
         requested_branch_id = request.data.get('branch') or request.query_params.get('branch')
-        if not requested_branch_id:
+        if requested_branch_id:
+            return str(user_branch.id) == str(requested_branch_id)
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user.is_authenticated:
             return False
             
-        return str(user_branch.id) == str(requested_branch_id)
+        role = get_user_role(request)
+        if role in [TenantUser.ROLE_OWNER, TenantUser.ROLE_ADMIN]:
+            return True
+            
+        from apps.branches.models import StaffProfile
+        try:
+            profile = StaffProfile.objects.get(user=request.user, is_active=True)
+            user_branch = profile.branch
+        except StaffProfile.DoesNotExist:
+            return False
+            
+        if hasattr(obj, 'branch'):
+            return str(user_branch.id) == str(obj.branch.id)
+        return False

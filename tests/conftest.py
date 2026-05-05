@@ -27,4 +27,4 @@ def session(branch, user):
 
 @pytest.fixture
 def product(tenant):
-    return Product.objects.create(name='Test Product', barcode='123456789', price=100, cost_price=50, is_active=True, tax_type='V')
+    return Product.objects.create(name='Test Product', barcode='123456789', selling_price=100, cost_price=50, is_active=True, tax_type='V')
