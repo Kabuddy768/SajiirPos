@@ -13,3 +13,10 @@ def dashboard(request):
         return render(request, 'pos/checkout.html', {'error': 'Unauthorized for dashboard'})
         
     return render(request, 'reports/dashboard.html')
+
+@login_required
+def etims_dashboard(request):
+    role = get_user_role(request)
+    if role not in [TenantUser.ROLE_OWNER, TenantUser.ROLE_ADMIN, TenantUser.ROLE_MANAGER]:
+        return redirect('dashboard')
+    return render(request, 'reports/etims_dashboard.html')

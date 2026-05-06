@@ -122,3 +122,56 @@ class ExpenseBreakdownView(_BaseReportView):
             return err
         data = ReportService.expense_breakdown(branch, start_date, end_date)
         return Response(data)
+
+class ETIMSCockpitView(_BaseReportView):
+    def get(self, request):
+        branch, start_date, end_date, err = self._resolve_params(request)
+        if err:
+            return err
+        
+        from django.db.models import Sum, Q
+        from apps.sales.models import Sale
+        import csv
+        from django.http import HttpResponse
+        
+        sales = Sale.objects.filter(
+            branch=branch,
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        )
+        
+        if request.query_params.get('export') == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="etims_report_{start_date}_{end_date}.csv"'
+            writer = csv.writer(response)
+            writer.writerow(['Invoice #', 'Date', 'Customer', 'Total', 'Tax', 'eTIMS Status', 'Signature'])
+            for s in sales:
+                writer.writerow([
+                    s.sale_number, 
+                    s.created_at.strftime('%Y-%m-%d %H:%M'), 
+                    s.customer.name if s.customer else 'Walk-in',
+                    s.total_amount,
+                    s.tax_amount,
+                    s.etims_submission_status,
+                    s.etims_signature
+                ])
+            return response
+
+        mtd_vat = sales.filter(status='completed').aggregate(total=Sum('tax_amount'))['total'] or 0
+        unsigned_invoices = sales.filter(etims_submission_status='pending').count()
+        failed_submissions = sales.filter(etims_submission_status='failed').count()
+        total_taxable = sales.filter(status='completed').aggregate(total=Sum('taxable_amount'))['total'] or 0
+        
+        data = {
+            'period': {
+                'start': start_date,
+                'end': end_date
+            },
+            'vat_liability': float(mtd_vat),
+            'taxable_amount': float(total_taxable),
+            'pending_count': unsigned_invoices,
+            'failed_count': failed_submissions,
+            'total_invoices': sales.count()
+        }
+        
+        return Response(data)

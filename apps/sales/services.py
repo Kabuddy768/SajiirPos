@@ -108,8 +108,19 @@ class SaleService:
     @staticmethod
     def _handle_loyalty_points(customer, total):
         if customer:
+            from apps.customers.models import LoyaltyTier
             points_earned = int(total // Decimal('100'))
             customer.loyalty_points += points_earned
+            customer.last_purchase_at = timezone.now()
+            
+            # Auto-update tier based on points
+            best_tier = LoyaltyTier.objects.filter(
+                min_points__lte=customer.loyalty_points
+            ).order_by('-min_points').first()
+            
+            if best_tier:
+                customer.tier = best_tier
+                
             customer.save()
 
     @staticmethod

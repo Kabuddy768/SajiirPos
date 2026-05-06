@@ -81,6 +81,10 @@ class SaleViewSet(viewsets.ModelViewSet):
                 schema_name=getattr(request.tenant, 'schema_name', 'public') if hasattr(request, 'tenant') else 'public',
                 manager_override=data.get('manager_override', False)
             )
+            if data.get('send_digital_receipt') and data.get('receipt_phone'):
+                from workers.receipt_tasks import send_whatsapp_receipt_task
+                send_whatsapp_receipt_task.delay(sale.id, data['receipt_phone'])
+                
             return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -134,6 +138,24 @@ class ProductLookupViewSet(viewsets.GenericViewSet):
             return Response([ProductSerializer(product).data]) # Return as list
         except Product.DoesNotExist:
             return Response([], status=status.HTTP_404_NOT_FOUND) # Return empty list
+    @action(detail=True, methods=['get'], url_path='global-stock')
+    def global_stock(self, request, pk=None):
+        product = self.get_object()
+        from apps.products.models import ProductBatch
+        from django.db.models import Sum
+        
+        # Get stock per branch
+        stock_per_branch = ProductBatch.objects.filter(
+            product=product
+        ).values('branch__name', 'branch__id').annotate(
+            total_stock=Sum('quantity_remaining')
+        ).filter(total_stock__gt=0)
+        
+        return Response({
+            'product_name': product.name,
+            'sku': product.sku,
+            'branches': list(stock_per_branch)
+        })
 
 class CashSessionViewSet(viewsets.ModelViewSet):
     queryset = CashSession.objects.all()

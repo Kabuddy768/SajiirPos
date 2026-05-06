@@ -104,9 +104,36 @@
                 </div>
             </div>
 
-            <button id="btn-complete-sale" onclick="completeSale()" class="mt-auto w-full h-12 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-bold tracking-wider transition-colors">
+            <div class="mt-4 p-3 bg-slate-900/50 rounded border border-slate-800 mb-4">
+                <label class="flex items-center space-x-2 cursor-pointer mb-2">
+                    <input type="checkbox" id="send-digital-receipt" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 h-3 w-3">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Digital Receipt</span>
+                </label>
+                <input type="text" id="receipt-phone" placeholder="Phone (254...)" class="hidden w-full bg-[#0F172A] border border-slate-700 text-white font-mono text-xs p-2 rounded focus:outline-none focus:border-indigo-500 transition-all">
+            </div>
+
+            <button id="btn-complete-sale" onclick="completeSale()" class="mt-auto w-full h-12 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-bold tracking-wider transition-colors shadow-lg">
                 COMPLETE SALE
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Lookup Modal -->
+<div id="stock-modal" class="hidden fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-[#1E293B] border border-slate-700 rounded-lg max-w-md w-full shadow-2xl">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Global Stock Lookup</h3>
+            <button onclick="closeStockModal()" class="text-slate-500 hover:text-white text-xl">&times;</button>
+        </div>
+        <div class="p-4">
+            <div id="stock-modal-product" class="text-xs text-indigo-400 font-bold mb-4"></div>
+            <div id="stock-modal-body" class="space-y-2">
+                <!-- Stock list here -->
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-800 flex justify-end">
+            <button onclick="closeStockModal()" class="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold hover:bg-slate-700 transition-colors">CLOSE</button>
         </div>
     </div>
 </div>
@@ -117,7 +144,7 @@
         branchId: "{{ request.user.tenantuser.branch_id|default:'' }}",
         sessionId: "{{ session.id }}",
         apiUrl: "/api/v1/sales/",
-        productsUrl: "/api/product-lookup/",
+        productsUrl: "/api/v1/products/",
         mpesaInitiateUrl: "/api/v1/payments/mpesa/initiate/",
         wsUrl: "ws://" + window.location.host + "/ws/sales/"
     };

@@ -25,6 +25,7 @@ class Product(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='products')
+    primary_supplier = models.ForeignKey('purchasing.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='primary_products')
     sku = models.CharField(max_length=100, unique=True)
     barcode = models.CharField(max_length=100, unique=True, null=True, blank=True)
     

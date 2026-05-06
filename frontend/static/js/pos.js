@@ -21,18 +21,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('cash-tendered').addEventListener('input', updateTotals);
+
+    const digitalReceiptToggle = document.getElementById('send-digital-receipt');
+    const receiptPhoneInput = document.getElementById('receipt-phone');
+    if (digitalReceiptToggle) {
+        digitalReceiptToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                receiptPhoneInput.classList.remove('hidden');
+                receiptPhoneInput.focus();
+            } else {
+                receiptPhoneInput.classList.add('hidden');
+            }
+        });
+    }
 });
 
 // Fetch product via API
 async function fetchProduct(barcode) {
     setStatus("SEARCHING PRODUCT...", "text-indigo-400");
     try {
-        const res = await fetch(`/api/product-lookup/?barcode=${encodeURIComponent(barcode)}`);
+        const res = await fetch(`${CONFIG.productsUrl}by_barcode/?barcode=${encodeURIComponent(barcode)}`);
         const data = await res.json();
         
-        if (data.found) {
-            addToCart(data.product);
-            setStatus("PRODUCT ADDED.", "text-emerald-400");
+        if (data.length > 0) {
+            const product = data[0];
+            if (product.current_stock > 0) {
+                addToCart(product);
+                setStatus("PRODUCT ADDED.", "text-emerald-400");
+            } else {
+                setStatus(`OUT OF STOCK. <button onclick="checkGlobalStock(${product.id})" class="underline text-indigo-400 ml-2 font-bold">CHECK BRANCHES</button>`, "text-rose-400", 6000);
+            }
         } else {
             setStatus("PRODUCT NOT FOUND.", "text-rose-400");
         }
@@ -42,16 +60,52 @@ async function fetchProduct(barcode) {
     }
 }
 
+async function checkGlobalStock(productId) {
+    try {
+        setStatus("LOOKING UP GLOBAL STOCK...", "text-indigo-400");
+        const res = await fetch(`${CONFIG.productsUrl}${productId}/global-stock/`);
+        const data = await res.json();
+        
+        document.getElementById('stock-modal-product').textContent = `${data.product_name} (${data.sku})`;
+        const body = document.getElementById('stock-modal-body');
+        body.innerHTML = '';
+        
+        if (data.branches.length === 0) {
+            body.innerHTML = '<div class="text-xs text-slate-500 italic">No stock found in any other branch.</div>';
+        } else {
+            data.branches.forEach(b => {
+                body.innerHTML += `
+                    <div class="flex justify-between items-center bg-slate-900/50 p-2 rounded border border-slate-800">
+                        <span class="text-xs text-slate-300 font-bold">${b.branch__name}</span>
+                        <span class="text-xs text-emerald-400 font-mono font-bold">${b.total_stock} IN STOCK</span>
+                    </div>
+                `;
+            });
+        }
+        
+        document.getElementById('stock-modal').classList.remove('hidden');
+    } catch (err) {
+        console.error("Global stock fetch failed:", err);
+        setStatus("FAILED TO FETCH GLOBAL STOCK.", "text-rose-400");
+    }
+}
+
+function closeStockModal() {
+    document.getElementById('stock-modal').classList.add('hidden');
+}
+
 
 // Set status message
-function setStatus(msg, colorClass = "text-slate-500") {
+function setStatus(msg, colorClass = "text-slate-500", timeout = 3000) {
     const el = document.getElementById('status-message');
-    el.textContent = msg;
+    el.innerHTML = msg;
     el.className = `text-[10px] font-mono ${colorClass}`;
     setTimeout(() => {
-        el.textContent = "AWAITING INPUT...";
-        el.className = "text-[10px] text-slate-500 font-mono";
-    }, 3000);
+        if (el.innerHTML === msg) {
+            el.textContent = "AWAITING INPUT...";
+            el.className = "text-[10px] text-slate-500 font-mono";
+        }
+    }, timeout);
 }
 
 // Add to cart
@@ -221,7 +275,9 @@ async function completeSale() {
             amount: total,
             mpesa_phone: currentPaymentMethod === 'mpesa' ? document.getElementById('mpesa-phone').value : null,
             card_reference: currentPaymentMethod === 'card' ? document.getElementById('card-reference').value : null
-        }]
+        }],
+        send_digital_receipt: document.getElementById('send-digital-receipt').checked,
+        receipt_phone: document.getElementById('receipt-phone').value
     };
 
     if (navigator.onLine) {

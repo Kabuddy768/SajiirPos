@@ -7,6 +7,7 @@ from apps.inventory.views import StockTransferViewSet
 from apps.expenses.views import ExpenseViewSet, ExpenseCategoryViewSet
 from apps.customers.views import CustomerViewSet
 from apps.purchasing.views import SupplierViewSet, PurchaseOrderViewSet, GoodsReceivedNoteViewSet
+from apps.audit.views import AuditViewSet
 
 router = DefaultRouter()
 router.register(r'sales', SaleViewSet, basename='sale')
@@ -21,6 +22,7 @@ router.register(r'customers', CustomerViewSet, basename='customer')
 router.register(r'suppliers', SupplierViewSet, basename='supplier')
 router.register(r'purchase-orders', PurchaseOrderViewSet, basename='purchase-order')
 router.register(r'grns', GoodsReceivedNoteViewSet, basename='grn')
+router.register(r'audit', AuditViewSet, basename='audit')
 
 urlpatterns = [
     path('', include(router.urls)),

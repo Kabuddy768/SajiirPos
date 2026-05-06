@@ -4,9 +4,32 @@ from apps.products.models import Product
 from apps.payments.models import Payment
 
 class ProductSerializer(serializers.ModelSerializer):
+    current_stock = serializers.SerializerMethodField()
+
     class Meta:
         model = Product
-        fields = ['id', 'name', 'barcode', 'selling_price', 'cost_price', 'is_tax_inclusive', 'tax_type', 'is_active']
+        fields = ['id', 'name', 'barcode', 'selling_price', 'cost_price', 'is_tax_inclusive', 'tax_type', 'is_active', 'current_stock']
+
+    def get_current_stock(self, obj):
+        from apps.products.models import ProductBatch
+        from django.db.models import Sum
+        from apps.branches.models import StaffProfile
+        
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return 0
+            
+        try:
+            profile = StaffProfile.objects.filter(user=request.user, is_active=True).first()
+            if profile:
+                stock = ProductBatch.objects.filter(
+                    product=obj, 
+                    branch=profile.branch
+                ).aggregate(total=Sum('quantity_remaining'))['total'] or 0
+                return float(stock)
+        except:
+            pass
+        return 0
 
 class CartItemSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
@@ -29,6 +52,8 @@ class SaleCreateSerializer(serializers.Serializer):
     cart = CartItemSerializer(many=True)
     payments = PaymentInputSerializer(many=True)
     manager_override = serializers.BooleanField(required=False, default=False)
+    send_digital_receipt = serializers.BooleanField(required=False, default=False)
+    receipt_phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 class SaleSerializer(serializers.ModelSerializer):
     class Meta:

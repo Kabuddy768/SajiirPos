@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from apps.sales.views_frontend import (
     session_open, checkout, session_close, z_report, product_lookup
 )
-from apps.reports.views_frontend import dashboard
+from apps.reports.views_frontend import dashboard, etims_dashboard
 
 urlpatterns = [
     path("login/", auth_views.LoginView.as_view(template_name="accounts/login.html"), name="login"),
@@ -11,6 +11,7 @@ urlpatterns = [
     
     path("", checkout, name="pos_checkout"),
     path("dashboard/", dashboard, name="dashboard"),
+    path("dashboard/etims/", etims_dashboard, name="etims_dashboard"),
     path("session/open/", session_open, name="session_open"),
     path("session/close/", session_close, name="session_close"),
     path("session/z-report/<int:session_id>/", z_report, name="z_report"),

@@ -163,6 +163,14 @@ CELERY_BEAT_SCHEDULE = {
     'check-inventory-levels-hourly': {
         'task': 'workers.inventory_alerts.check_inventory_levels',
         'schedule': crontab(minute=0),
+    },
+    'detect-churned-customers-daily': {
+        'task': 'workers.loyalty_tasks.detect_churned_customers',
+        'schedule': crontab(hour=8, minute=0),
+    },
+    'auto-generate-pos-daily': {
+        'task': 'workers.purchasing_tasks.generate_demand_based_po',
+        'schedule': crontab(hour=6, minute=0),
     }
 }
 
@@ -179,3 +187,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'pos_checkout'
 LOGOUT_REDIRECT_URL = 'login'
+
+AFRICASTALKING_USERNAME = config('AFRICASTALKING_USERNAME', default='sandbox')
+AFRICASTALKING_API_KEY = config('AFRICASTALKING_API_KEY', default='')

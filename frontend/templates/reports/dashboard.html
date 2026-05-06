@@ -2,18 +2,26 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
     <h2 class="text-2xl font-bold text-gray-900">Manager Dashboard</h2>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
         <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
             <h5 class="text-lg font-medium text-gray-900 mb-4">Daily Sales</h5>
-            <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded" onclick="loadReport('sales_summary')">Load Sales Summary</button>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded w-full" onclick="loadReport('sales_summary')">Load Sales Summary</button>
         </div>
         <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
             <h5 class="text-lg font-medium text-gray-900 mb-4">Inventory Health</h5>
-            <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded" onclick="loadReport('inventory_valuation')">Load Inventory Valuation</button>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded w-full" onclick="loadReport('inventory_valuation')">Load Inventory Valuation</button>
         </div>
         <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
             <h5 class="text-lg font-medium text-gray-900 mb-4">P&L Report</h5>
-            <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded" onclick="loadReport('profit_loss')">Load Profit & Loss</button>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded w-full" onclick="loadReport('profit_loss')">Load Profit & Loss</button>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 border border-red-200">
+            <h5 class="text-lg font-medium text-gray-900 mb-4">Shrinkage & Anomalies</h5>
+            <button class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded w-full" onclick="loadCashierMetrics()">View Performance</button>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 border border-indigo-200">
+            <h5 class="text-lg font-medium text-gray-900 mb-4">eTIMS Compliance</h5>
+            <a href="{% url 'etims_dashboard' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded w-full inline-block text-center transition-colors">Open Cockpit</a>
         </div>
     </div>
     <div class="mt-8" id="report-results">
@@ -38,6 +46,64 @@
         })
         .catch(err => {
             document.getElementById('report-results').innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">Failed to load report: ${err}</div>`;
+        });
+    }
+    function loadCashierMetrics() {
+        const endpoint = `/api/v1/audit/cashier-metrics/`;
+        fetch(endpoint, {
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            let html = `
+                <div class="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
+                    <div class="px-4 py-5 sm:px-6 flex justify-between items-center bg-gray-50">
+                        <div>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">Cashier Performance (Last 30 Days)</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Anomaly detection for potential shrinkage.</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-200 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cashier</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sales</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voids</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Void Rate</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount Rate</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            data.forEach(m => {
+                const voidClass = m.void_rate > 5 ? 'text-red-600 font-bold' : 'text-gray-900';
+                html += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${m.cashier_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${m.total_sales}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${m.voided_sales}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${voidClass}">${m.void_rate}%</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${m.discount_rate}%</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">KES ${m.total_revenue.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('report-results').innerHTML = html;
+        })
+        .catch(err => {
+            document.getElementById('report-results').innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">Failed to load metrics: ${err}</div>`;
         });
     }
 </script>

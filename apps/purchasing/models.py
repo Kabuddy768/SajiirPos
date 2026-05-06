@@ -29,7 +29,7 @@ class PurchaseOrder(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     expected_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='purchase_orders')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='purchase_orders', null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
 

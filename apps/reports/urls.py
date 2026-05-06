@@ -8,6 +8,7 @@ from .views import (
     StockMovementHistoryView,
     ProfitLossView,
     ExpenseBreakdownView,
+    ETIMSCockpitView,
 )
 
 urlpatterns = [
@@ -24,4 +25,8 @@ urlpatterns = [
     # Financial reports
     path('financial/profit-loss/', ProfitLossView.as_view(), name='report-profit-loss'),
     path('financial/expenses/', ExpenseBreakdownView.as_view(), name='report-expense-breakdown'),
+
+    # eTIMS Cockpit
+    path('etims/cockpit/', ETIMSCockpitView.as_view(), name='report-etims-cockpit'),
+    path('etims/cockpit/export/', ETIMSCockpitView.as_view(), name='report-etims-cockpit-export'),
 ]
