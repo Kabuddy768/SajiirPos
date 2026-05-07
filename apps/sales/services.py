@@ -93,19 +93,35 @@ class SaleService:
         return processed_items, subtotal, discount, taxable_amount, tax_amount, total
 
     @staticmethod
-    def _create_payments(sale, payments):
+    def _create_payments(sale, payments, customer):
         for p in payments:
             status = 'pending' if p['method'] == 'mpesa' else 'confirmed'
+            amt = Decimal(str(p['amount']))
+            
+            if p['method'] == 'points':
+                if not customer:
+                    raise ValueError("Points payment requires a customer profile.")
+                
+                # 1 Point = 1 KES conversion
+                points_needed = int(amt) 
+                if customer.loyalty_points < points_needed:
+                    raise ValueError(f"Insufficient loyalty points. Have {customer.loyalty_points}, need {points_needed}.")
+                
+                customer.loyalty_points -= points_needed
+                customer.save()
+                status = 'confirmed'
+
             Payment.objects.create(
                 sale=sale,
                 method=p['method'],
-                amount=Decimal(str(p['amount'])),
+                amount=amt,
                 status=status,
                 mpesa_phone=p.get('mpesa_phone', ''),
                 card_reference=p.get('card_reference', '')
             )
 
     @staticmethod
+
     def _handle_loyalty_points(customer, total):
         if customer:
             from apps.customers.models import LoyaltyTier
@@ -181,7 +197,8 @@ class SaleService:
                     batch=p_item['batch']
                 )
 
-            SaleService._create_payments(sale, payments)
+            SaleService._create_payments(sale, payments, customer)
+
             SaleService._handle_loyalty_points(customer, total)
 
             log_action(

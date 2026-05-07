@@ -1,0 +1,369 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dashboard — Sajiir POS{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0f172a;
+      --surface:    #1e293b;
+      --surface-2:  #162032;
+      --border:     #334155;
+      --primary:    #4f46e5;
+      --primary-h:  #4338ca;
+      --primary-l:  rgba(79,70,229,0.15);
+      --text:       #e2e8f0;
+      --muted:      #94a3b8;
+      --faint:      #64748b;
+      --success:    #10b981;
+      --error:      #ef4444;
+      --warning:    #f59e0b;
+      --sidebar-w:  220px;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+
+    /* ── Layout ─────────────────────────────────────────── */
+    .dash-shell { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: #111827;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 10px;
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo-icon {
+      width: 32px; height: 32px; background: var(--primary); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .sidebar-logo-icon svg { width: 18px; height: 18px; color: #fff; }
+    .sidebar-logo-name { font-weight: 700; font-size: 15px; color: #fff; }
+
+    .sidebar-section { padding: 16px 12px 8px; }
+    .sidebar-section-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--faint); padding: 0 8px; margin-bottom: 6px;
+    }
+
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      font-size: 13.5px; font-weight: 500; color: var(--muted);
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+      margin-bottom: 2px;
+    }
+
+    .sidebar-link:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .sidebar-link.active { background: var(--primary-l); color: #818cf8; }
+
+    .sidebar-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .sidebar-footer {
+      margin-top: auto; padding: 12px; border-top: 1px solid var(--border);
+    }
+
+    .user-chip {
+      display: flex; align-items: center; gap: 10px; padding: 8px;
+      border-radius: 8px; cursor: default;
+    }
+
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    .user-chip-info { flex: 1; min-width: 0; }
+    .user-chip-name  { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-chip-role  { font-size: 11px; color: var(--faint); text-transform: capitalize; }
+
+    .btn-logout {
+      display: block; width: 100%; margin-top: 8px; padding: 7px;
+      background: transparent; border: 1px solid var(--border); border-radius: 7px;
+      color: var(--faint); font-size: 12px; font-family: inherit; cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-logout:hover { color: var(--error); border-color: var(--error); }
+
+    /* ── Main area ──────────────────────────────────────── */
+    .dash-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .dash-topbar {
+      height: 56px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 28px; gap: 16px;
+      background: var(--surface); flex-shrink: 0;
+    }
+
+    .topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .topbar-breadcrumb { font-size: 12px; color: var(--faint); }
+    .topbar-spacer { flex: 1; }
+
+    .dash-content { flex: 1; overflow-y: auto; padding: 28px; }
+
+    /* ── Cards / surfaces ───────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+    }
+
+    .card-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .card-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+    /* ── Form elements ──────────────────────────────────── */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+
+    input[type="text"], input[type="email"], select, textarea {
+      width: 100%; padding: 10px 14px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-l);
+    }
+
+    select option { background: var(--surface); }
+
+    .btn-primary {
+      padding: 10px 20px; background: var(--primary); color: #fff;
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { background: var(--primary-h); }
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-secondary {
+      padding: 10px 20px; background: transparent; color: var(--muted);
+      font-size: 14px; font-weight: 500; font-family: inherit;
+      border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      text-decoration: none; display: inline-block;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Tables ─────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600;
+         text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint);
+         border-bottom: 1px solid var(--border); }
+    td { padding: 12px 14px; border-bottom: 1px solid rgba(51,65,85,0.5); color: var(--muted); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── Badges ─────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600;
+    }
+    .badge-indigo { background: rgba(79,70,229,0.15); color: #818cf8; }
+    .badge-green  { background: rgba(16,185,129,0.12); color: #34d399; }
+    .badge-amber  { background: rgba(245,158,11,0.12); color: #fbbf24; }
+    .badge-slate  { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .badge-red    { background: rgba(239,68,68,0.12); color: #f87171; }
+
+    /* ── Messages ───────────────────────────────────────── */
+    .messages { list-style: none; margin-bottom: 20px; }
+    .messages li { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 8px; }
+    .messages .success { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+    .messages .error   { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.2);  }
+    .messages .warning { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+    .messages .info    { background: rgba(99,102,241,0.12); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.2); }
+
+    .field-error { color: var(--error); font-size: 12px; margin-top: 4px; }
+
+    /* ── KPI cards ──────────────────────────────────────── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .kpi-label { font-size: 12px; color: var(--faint); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi-value { font-size: 26px; font-weight: 700; color: var(--text); margin: 6px 0 2px; }
+    .kpi-sub   { font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+<div class="dash-shell">
+
+  {# ── Sidebar ───────────────────────────────────────────── #}
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <span class="sidebar-logo-name">Sajiir POS</span>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Main</div>
+
+      <a href="{% url 'dashboard' %}" id="nav-overview"
+         class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        Overview
+      </a>
+
+      {% if user_role in 'owner admin' %}
+      <a href="{% url 'dashboard_staff' %}" id="nav-staff"
+         class="sidebar-link {% if 'staff' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Staff
+      </a>
+
+      <a href="{% url 'branch_list' %}" id="nav-branches" class="sidebar-link {% if 'branch' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+        </svg>
+        Branches
+      </a>
+
+      {% endif %}
+
+      <a href="{% url 'product_list' %}" id="nav-products"
+         class="sidebar-link {% if 'product' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+        </svg>
+        Products
+      </a>
+
+      <a href="{% url 'stock_list' %}" id="nav-inventory"
+         class="sidebar-link {% if 'stock' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+        </svg>
+        Inventory
+      </a>
+
+
+      <a href="{% url 'sale_list' %}" id="nav-sales"
+         class="sidebar-link {% if 'sale' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        Sales
+      </a>
+
+      <a href="{% url 'customer_list' %}" id="nav-customers"
+         class="sidebar-link {% if 'customer' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        Customers
+      </a>
+
+      <a href="{% url 'expense_list' %}" id="nav-expenses"
+
+         class="sidebar-link {% if 'expense' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3 1.343 3 3-1.343 3-3 3m0-12a9 9 0 110 18 9 9 0 010-18z"/>
+        </svg>
+        Expenses
+      </a>
+
+      <a href="{% url 'dashboard' %}" id="nav-reports" class="sidebar-link {% if 'dashboard' == request.resolver_match.url_name %}active{% endif %}">
+
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Reports
+      </a>
+
+
+      {% if user_role == 'owner' %}
+      <a href="{% url 'subscription_page' %}" id="nav-subscription" class="sidebar-link {% if 'subscription' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+        </svg>
+        Subscription
+      </a>
+      {% endif %}
+
+    </div>
+
+    <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;">
+      <div class="sidebar-section-label">Operations</div>
+      <a href="{% url 'pos_checkout' %}" id="nav-till" class="sidebar-link">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        Open POS Till
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="avatar">{{ request.user.email|first|upper }}</div>
+        <div class="user-chip-info">
+          <div class="user-chip-name">{{ request.user.get_full_name|default:request.user.email }}</div>
+          <div class="user-chip-role">{{ user_role|default:'staff' }}</div>
+        </div>
+      </div>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-logout" id="btn-sidebar-logout">Sign out</button>
+      </form>
+    </div>
+  </aside>
+
+  {# ── Main ──────────────────────────────────────────────── #}
+  <div class="dash-main">
+    <div class="dash-topbar">
+      <span class="topbar-title">{% block page_title %}Dashboard{% endblock %}</span>
+      <span class="topbar-breadcrumb">{% block breadcrumb %}{% endblock %}</span>
+      <div class="topbar-spacer"></div>
+      {% block topbar_actions %}{% endblock %}
+    </div>
+
+    <div class="dash-content">
+      {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

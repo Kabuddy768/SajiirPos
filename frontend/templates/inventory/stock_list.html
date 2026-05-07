@@ -1,0 +1,87 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Inventory — Sajiir POS{% endblock %}
+{% block page_title %}Stock Levels{% endblock %}
+{% block breadcrumb %}Dashboard / Inventory / Stock{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'transfer_list' %}" class="btn-secondary" style="font-size:13px;">
+  Stock Transfers
+</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── Filters ────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:24px; padding:16px;">
+  <form method="get" class="flex gap-4 items-end">
+    <div style="flex:1">
+      <label for="id_q" style="font-size:11px; margin-bottom:4px;">Search Products</label>
+      <input type="text" name="q" id="id_q" value="{{ search_query }}" placeholder="Name, SKU..." style="padding:8px 12px;">
+    </div>
+    <div style="width:200px">
+      <label for="id_branch" style="font-size:11px; margin-bottom:4px;">Branch</label>
+      <select name="branch" id="id_branch" style="padding:8px 12px;">
+        <option value="">All Branches</option>
+        {% for b in branches %}
+          <option value="{{ b.id }}" {% if selected_branch == b.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex items-center gap-2 mb-2">
+      <input type="checkbox" name="low_stock" id="id_low_stock" value="1" {% if only_low_stock %}checked{% endif %}>
+      <label for="id_low_stock" style="margin:0; font-size:13px;">Low Stock Only</label>
+    </div>
+    <button type="submit" class="btn-primary" style="padding:9px 20px;">Filter</button>
+  </form>
+</div>
+
+{# ── Stock Table ────────────────────────────────────────────── #}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Branch</th>
+          <th>Category</th>
+          <th>Available</th>
+          <th>Min Level</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stock in stocks %}
+        <tr>
+          <td>
+            <div style="color:var(--text); font-weight:500;">{{ stock.product.name }}</div>
+            <div style="font-size:11px; color:var(--faint)">{{ stock.product.sku }}</div>
+          </td>
+          <td><span class="text-xs">{{ stock.branch.name }}</span></td>
+          <td><span class="badge badge-slate">{{ stock.product.category.name }}</span></td>
+          <td style="color:var(--text); font-weight:600; font-size:15px;">
+             {{ stock.quantity|floatformat:stock.product.is_weighable|yesno:"3,0" }}
+             <span style="font-size:11px; font-weight:400; color:var(--faint)">{{ stock.product.sale_unit.short_name }}</span>
+          </td>
+          <td>{{ stock.product.minimum_stock_level }}</td>
+          <td>
+            {% if stock.quantity <= stock.product.minimum_stock_level %}
+              <span class="badge badge-red">Low Stock</span>
+            {% else %}
+              <span class="badge badge-green">In Stock</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align:center; padding:48px; color:var(--faint);">
+            No stock records found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

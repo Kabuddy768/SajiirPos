@@ -1,0 +1,38 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}{{ title }} — Sajiir POS{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block breadcrumb %}Dashboard / Customers / Manage{% endblock %}
+
+{% block content %}
+
+<div style="max-width:600px;">
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+      
+      <div class="grid grid-cols-1 gap-6">
+        {% for field in form %}
+        <div>
+          <label for="{{ field.id_for_label }}" style="display:block; font-size:13px; font-weight:500; color:var(--muted); margin-bottom:8px;">
+            {{ field.label }}
+          </label>
+          {{ field }}
+          {% if field.errors %}
+            <div style="color:var(--error); font-size:11px; margin-top:4px;">{{ field.errors.0 }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="margin-top:32px; padding-top:24px; border-top:1px solid var(--border); display:flex; gap:12px; justify-content:flex-end;">
+        <a href="{% url 'customer_list' %}" class="btn-secondary" style="padding:10px 24px;">Cancel</a>
+        <button type="submit" class="btn-primary" style="padding:10px 32px;">
+          Save Customer Profile
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

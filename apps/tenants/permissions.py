@@ -7,7 +7,39 @@ def get_user_role(request):
     try:
         tenant = request.tenant
         tenant_user = TenantUser.objects.get(user=request.user, tenant=tenant, is_active=True)
-        return tenant_user.role
+        tenant_role = tenant_user.role
+
+        if tenant_role in [TenantUser.ROLE_OWNER, TenantUser.ROLE_ADMIN]:
+            return tenant_role
+
+        requested_branch_id = None
+        if hasattr(request, 'query_params'):
+            if request.method in permissions.SAFE_METHODS:
+                requested_branch_id = request.query_params.get('branch')
+            else:
+                requested_branch_id = request.data.get('branch') if hasattr(request, 'data') else None
+                if not requested_branch_id:
+                    requested_branch_id = request.query_params.get('branch')
+        
+        if requested_branch_id:
+            from apps.branches.models import StaffProfile
+            try:
+                profile = StaffProfile.objects.filter(user=request.user, branch_id=requested_branch_id, is_active=True).first()
+                if profile and hasattr(profile, 'branch_role'):
+                    role_hierarchy = {
+                        TenantUser.ROLE_OWNER: 5,
+                        TenantUser.ROLE_ADMIN: 4,
+                        TenantUser.ROLE_MANAGER: 3,
+                        TenantUser.ROLE_AUDITOR: 2,
+                        TenantUser.ROLE_CASHIER: 1
+                    }
+                    branch_role_level = role_hierarchy.get(profile.branch_role, 0)
+                    tenant_role_level = role_hierarchy.get(tenant_role, 0)
+                    return profile.branch_role if branch_role_level <= tenant_role_level else tenant_role
+            except Exception:
+                pass
+                
+        return tenant_role
     except (AttributeError, TenantUser.DoesNotExist):
         return None
 

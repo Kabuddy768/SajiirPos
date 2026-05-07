@@ -1,0 +1,83 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Sales History — Sajiir POS{% endblock %}
+{% block page_title %}Sales Ledger{% endblock %}
+{% block breadcrumb %}Dashboard / Sales{% endblock %}
+
+{% block content %}
+
+{# ── Filters ────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:24px; padding:16px;">
+  <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+    <div>
+      <label style="font-size:11px; margin-bottom:4px; display:block;">Search</label>
+      <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Receipt #, Phone..." style="width:100%; padding:8px 12px;">
+    </div>
+    <div>
+      <label style="font-size:11px; margin-bottom:4px; display:block;">Branch</label>
+      <select name="branch" style="width:100%; padding:8px 12px;">
+        <option value="">All Branches</option>
+        {% for b in branches %}
+          <option value="{{ b.id }}" {% if request.GET.branch == b.id|stringformat:"i" %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <div style="flex:1">
+        <label style="font-size:11px; margin-bottom:4px; display:block;">From</label>
+        <input type="date" name="date_from" value="{{ request.GET.date_from }}" style="width:100%; padding:8px 12px;">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px; margin-bottom:4px; display:block;">To</label>
+        <input type="date" name="date_to" value="{{ request.GET.date_to }}" style="width:100%; padding:8px 12px;">
+      </div>
+    </div>
+    <button type="submit" class="btn-primary" style="height:38px;">Filter</button>
+  </form>
+</div>
+
+{# ── Sales Table ────────────────────────────────────────────── #}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Receipt #</th>
+          <th>Time</th>
+          <th>Branch</th>
+          <th>Cashier</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th style="text-align:right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in sales %}
+        <tr>
+          <td><span style="font-weight:600; color:var(--text)">{{ sale.sale_number }}</span></td>
+          <td style="font-size:11px;">{{ sale.created_at|date:"d/m/Y H:i" }}</td>
+          <td style="font-size:12px;">{{ sale.branch.name }}</td>
+          <td style="font-size:12px;">{{ sale.cashier.email|truncatechars:15 }}</td>
+          <td style="font-weight:700;">{{ sale.currency }} {{ sale.total_amount|floatformat:2 }}</td>
+          <td>
+            {% if sale.status == 'completed' %}<span class="badge badge-green">Paid</span>
+            {% elif sale.status == 'refunded' %}<span class="badge badge-red">Refunded</span>
+            {% elif sale.status == 'partial_refund' %}<span class="badge badge-amber">Partial Ref.</span>
+            {% else %}<span class="badge badge-slate">{{ sale.status|title }}</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right">
+            <a href="{% url 'sale_detail' sale.id %}" class="btn-secondary" style="padding:4px 12px; font-size:11px;">Details</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center; padding:48px; color:var(--faint);">No sales records found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

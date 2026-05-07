@@ -1,0 +1,23 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Invalid Invitation — Sajiir POS{% endblock %}
+{% block card_title %}Invitation Invalid{% endblock %}
+{% block card_subtitle %}This invitation link cannot be used{% endblock %}
+
+{% block card_body %}
+<div style="text-align:center;padding:8px 0 24px;">
+  <div style="font-size:48px;margin-bottom:16px;">🔗</div>
+  <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">
+    {{ reason }}
+  </p>
+  <p style="color:var(--text-faint);font-size:13px;">
+    Please ask the person who invited you to send a new invitation.
+  </p>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<div class="auth-footer">
+  <a href="{% url 'login' %}">Go to login</a>
+</div>
+{% endblock %}

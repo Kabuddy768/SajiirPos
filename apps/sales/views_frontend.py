@@ -110,3 +110,51 @@ def product_lookup(request):
     except Product.DoesNotExist:
         return JsonResponse({'found': False, 'error': 'Not found'})
 
+# ── Week 5: Advanced Sales & Reporting ──────────────────────────
+
+@login_required
+def sale_list(request):
+    role = get_user_role(request)
+    if role not in ['owner', 'admin', 'manager', 'auditor']:
+        return redirect('pos_checkout')
+
+    from django.db.models import Q
+    
+    branch_id = request.GET.get('branch')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    q = request.GET.get('q', '')
+
+    sales = Sale.objects.select_related('branch', 'cashier', 'session').order_by('-created_at')
+
+    if branch_id:
+        sales = sales.filter(branch_id=branch_id)
+    if date_from:
+        sales = sales.filter(created_at__date__gte=date_from)
+    if date_to:
+        sales = sales.filter(created_at__date__lte=date_to)
+    if q:
+        sales = sales.filter(
+            Q(sale_number__icontains=q) |
+            Q(customer_name__icontains=q) |
+            Q(customer_phone__icontains=q)
+        )
+
+    branches = Branch.objects.filter(is_active=True)
+    
+    return render(request, 'sales/sale_list.html', {
+        'sales': sales[:100],  # Limit to 100 for performance, add pagination later if needed
+        'branches': branches,
+        'user_role': role,
+    })
+
+@login_required
+def sale_detail(request, pk):
+    role = get_user_role(request)
+    sale = get_object_or_404(Sale.objects.prefetch_related('items__product'), pk=pk)
+    
+    return render(request, 'sales/sale_detail.html', {
+        'sale': sale,
+        'user_role': role,
+    })
+

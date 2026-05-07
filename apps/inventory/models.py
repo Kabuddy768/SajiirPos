@@ -41,7 +41,7 @@ class StockMovement(models.Model):
     
     batch = models.ForeignKey('products.ProductBatch', on_delete=models.SET_NULL, null=True, blank=True, related_name='movements')
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='stock_movements')
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
         return f"{self.reason} - {self.product.name} ({self.quantity})"
@@ -59,7 +59,7 @@ class StockTransfer(models.Model):
     transfer_number = models.CharField(max_length=100, unique=True)
     from_branch = models.ForeignKey('branches.Branch', on_delete=models.PROTECT, related_name='transfers_out')
     to_branch = models.ForeignKey('branches.Branch', on_delete=models.PROTECT, related_name='transfers_in')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
     notes = models.TextField(blank=True)
 
     requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='transfer_requests')
@@ -67,7 +67,7 @@ class StockTransfer(models.Model):
     shipped_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfer_shipments')
     received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfer_receipts')
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     shipped_at = models.DateTimeField(null=True, blank=True)
     received_at = models.DateTimeField(null=True, blank=True)

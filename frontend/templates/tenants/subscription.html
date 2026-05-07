@@ -1,0 +1,106 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Subscription — Sajiir POS{% endblock %}
+{% block page_title %}Subscription & Plan{% endblock %}
+{% block breadcrumb %}Dashboard / Subscription{% endblock %}
+
+{% block content %}
+
+<div style="max-width:900px;">
+  
+  {# ── Current Plan Card ────────────────────────────────────── #}
+  <div class="card" style="background:linear-gradient(135deg, #1e1b4b, #1e293b); border:none; margin-bottom:32px; padding:32px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-size:12px; color:var(--primary); font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;">Current Workspace Plan</div>
+        <div style="font-size:32px; font-weight:800; color:#fff; text-transform:capitalize;">{{ tenant.plan|default:"Starter" }}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px; color:var(--faint); margin-bottom:4px;">Workspace ID</div>
+        <div style="font-size:13px; font-family:monospace; color:var(--muted);">{{ tenant.schema_name }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Usage Meters ─────────────────────────────────────────── #}
+  <div class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; margin-bottom:32px;">
+    
+    <div class="card">
+      <div class="card-title">Branch Usage</div>
+      <div class="card-subtitle">Active branches vs. plan limit</div>
+      <div style="margin-top:20px;">
+        <div class="flex justify-between" style="font-size:13px; margin-bottom:8px;">
+          <span style="color:var(--text)">{{ usage.branches.current }} of {{ usage.branches.limit }}</span>
+          <span style="color:var(--faint)">{{ usage.branches.percent|floatformat:0 }}%</span>
+        </div>
+        <div style="height:8px; background:var(--surface-2); border-radius:4px; overflow:hidden;">
+          <div style="height:100%; width:{{ usage.branches.percent }}%; background:var(--primary); border-radius:4px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Staff Usage</div>
+      <div class="card-subtitle">Active members vs. plan limit</div>
+      <div style="margin-top:20px;">
+        <div class="flex justify-between" style="font-size:13px; margin-bottom:8px;">
+          <span style="color:var(--text)">{{ usage.staff.current }} of {{ usage.staff.limit }}</span>
+          <span style="color:var(--faint)">{{ usage.staff.percent|floatformat:0 }}%</span>
+        </div>
+        <div style="height:8px; background:var(--surface-2); border-radius:4px; overflow:hidden;">
+          <div style="height:100%; width:{{ usage.staff.percent }}%; background:var(--success); border-radius:4px;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Plan Features ────────────────────────────────────────── #}
+  <div class="card">
+    <div class="card-title">Plan Capabilities</div>
+    <div class="table-wrap" style="margin-top:16px;">
+      <table style="border:none;">
+        <tbody>
+          <tr>
+            <td style="padding-left:0; color:var(--muted)">eTIMS Integration</td>
+            <td style="text-align:right;">
+              {% if limits.etims %}<span class="badge badge-green">Included</span>{% else %}<span class="badge badge-slate">Locked</span>{% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-left:0; color:var(--muted)">Inter-Branch Transfers</td>
+            <td style="text-align:right;">
+              {% if limits.transfers %}<span class="badge badge-green">Included</span>{% else %}<span class="badge badge-slate">Locked</span>{% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-left:0; color:var(--muted)">WhatsApp Receipts</td>
+            <td style="text-align:right;">
+              {% if limits.whatsapp_receipts %}<span class="badge badge-green">Included</span>{% else %}<span class="badge badge-slate">Locked</span>{% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-left:0; color:var(--muted)">Loyalty System</td>
+            <td style="text-align:right;">
+              {% if limits.loyalty %}<span class="badge badge-green">Included</span>{% else %}<span class="badge badge-slate">Locked</span>{% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Upgrade CTA ─────────────────────────────────────────── #}
+  <div style="margin-top:40px; text-align:center; padding:40px; background:rgba(79,70,229,0.05); border-radius:16px; border:1px dashed var(--primary);">
+    <h3 style="color:#fff; font-size:18px; margin-bottom:12px;">Need more power?</h3>
+    <p style="color:var(--muted); font-size:14px; margin-bottom:24px; max-width:500px; margin-left:auto; margin-right:auto;">
+      Upgrade to the <strong>Pro</strong> or <strong>Enterprise</strong> plan to unlock unlimited branches, eTIMS compliance, and advanced inventory transfers.
+    </p>
+    <a href="mailto:support@sajiir.com?subject=Plan%20Upgrade%20Request%3A%20{{ tenant.schema_name }}" class="btn-primary" style="padding:12px 32px;">
+      Contact Sales for Upgrade
+    </a>
+  </div>
+
+</div>
+
+{% endblock %}

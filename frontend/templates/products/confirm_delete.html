@@ -1,0 +1,26 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Deactivate Product — Sajiir POS{% endblock %}
+{% block page_title %}Deactivate Product{% endblock %}
+{% block breadcrumb %}Dashboard / Products / Deactivate{% endblock %}
+
+{% block content %}
+<div style="max-width:500px; margin: 40px auto;">
+  <div class="card" style="text-align:center; border-color: var(--error);">
+    <div style="font-size:48px; margin-bottom:20px;">⚠️</div>
+    <div class="card-title" style="font-size:18px;">Are you sure?</div>
+    <p style="color:var(--muted); margin-bottom:32px;">
+      You are about to deactivate <strong>{{ product.name }}</strong>. 
+      This will prevent it from being sold or managed, but will preserve its historical data.
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:flex; gap:12px; justify-content: center;">
+        <a href="{% url 'product_list' %}" class="btn-secondary">Cancel, keep it</a>
+        <button type="submit" class="btn-primary" style="background: var(--error);">Yes, deactivate product</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -43,7 +43,7 @@ class AuditService:
             
             metrics.append({
                 'cashier_id': cashier.id,
-                'cashier_name': cashier.get_full_name() or cashier.username,
+                'cashier_name': cashier.get_full_name() or cashier.email,
                 'total_sales': total_sales,
                 'voided_sales': voided_sales,
                 'void_rate': round(void_rate, 2),

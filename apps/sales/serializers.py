@@ -11,8 +11,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'barcode', 'selling_price', 'cost_price', 'is_tax_inclusive', 'tax_type', 'is_active', 'current_stock']
 
     def get_current_stock(self, obj):
-        from apps.products.models import ProductBatch
-        from django.db.models import Sum
+        from apps.inventory.models import BranchStock
         from apps.branches.models import StaffProfile
         
         request = self.context.get('request')
@@ -22,11 +21,11 @@ class ProductSerializer(serializers.ModelSerializer):
         try:
             profile = StaffProfile.objects.filter(user=request.user, is_active=True).first()
             if profile:
-                stock = ProductBatch.objects.filter(
+                bs = BranchStock.objects.filter(
                     product=obj, 
                     branch=profile.branch
-                ).aggregate(total=Sum('quantity_remaining'))['total'] or 0
-                return float(stock)
+                ).first()
+                return float(bs.quantity) if bs else 0
         except:
             pass
         return 0

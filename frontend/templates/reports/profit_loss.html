@@ -1,0 +1,108 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}P&L Report — Sajiir POS{% endblock %}
+{% block page_title %}Financial Summary{% endblock %}
+{% block breadcrumb %}Dashboard / Reports / Profit & Loss{% endblock %}
+
+{% block content %}
+
+{# ── Date Picker ────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:24px; padding:16px;">
+  <form method="get" class="flex gap-4 items-end">
+    <div>
+      <label style="font-size:11px; margin-bottom:4px; display:block;">Month</label>
+      <select name="month" style="padding:8px 12px;">
+        {% for m in months %}
+          <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>
+            {{ m|stringformat:"02d" }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px; margin-bottom:4px; display:block;">Year</label>
+      <select name="year" style="padding:8px 12px;">
+        {% for y in years %}
+          <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-primary" style="padding:9px 20px;">Generate Report</button>
+  </form>
+</div>
+
+{# ── P&L Statement ──────────────────────────────────────────── #}
+<div style="display:grid; grid-template-columns: 1fr 350px; gap:24px;">
+  
+  <div class="card">
+    <div class="card-title">Statement of Profit or Loss</div>
+    <div class="card-subtitle">For the period {{ selected_month|stringformat:"02d" }}/{{ selected_year }}</div>
+
+    <div style="margin-top:32px;">
+      <div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border);">
+        <span style="color:var(--muted)">Total Revenue (Sales)</span>
+        <span style="font-weight:600; color:var(--text)">{{ revenue|floatformat:2 }}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border);">
+        <span style="color:var(--muted)">Cost of Goods Sold (COGS)</span>
+        <span style="font-weight:600; color:var(--error)">({{ cogs|floatformat:2 }})</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:16px 0; border-bottom:2px solid var(--border);">
+        <span style="font-weight:700; color:var(--text)">GROSS PROFIT</span>
+        <span style="font-weight:800; color:var(--success)">{{ gross_profit|floatformat:2 }}</span>
+      </div>
+
+      <div style="margin-top:24px;">
+        <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Operating Expenses</div>
+        {% for exp in expense_breakdown %}
+        <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:14px;">
+          <span style="color:var(--muted)">{{ exp.category__name|default:"General Expenses" }}</span>
+          <span style="color:var(--text)">{{ exp.total|floatformat:2 }}</span>
+        </div>
+        {% endfor %}
+        <div style="display:flex; justify-content:space-between; padding:12px 0; border-top:1px dashed var(--border);">
+          <span style="color:var(--muted); font-style:italic;">Total Operating Expenses</span>
+          <span style="font-weight:600; color:var(--error)">({{ total_expenses|floatformat:2 }})</span>
+        </div>
+      </div>
+
+      <div style="margin-top:32px; padding:20px; background:rgba(79,70,229,0.05); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:800; font-size:18px; color:#fff;">NET PROFIT / LOSS</span>
+        <span style="font-weight:800; font-size:24px; color:{% if net_profit >= 0 %}var(--success){% else %}var(--error){% endif %};">
+          {{ request.tenant.currency }} {{ net_profit|floatformat:2 }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Summary Insights ────────────────────────────────────── #}
+  <div>
+    <div class="card">
+      <div class="card-title" style="font-size:14px;">Quick Stats</div>
+      <div class="flex flex-col gap-4 mt-4">
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Gross Margin</div>
+          <div style="font-size:18px; font-weight:700; color:var(--text);">
+            {{ gross_margin|floatformat:1 }}%
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Expense Ratio</div>
+          <div style="font-size:18px; font-weight:700; color:var(--text);">
+            {{ expense_ratio|floatformat:1 }}%
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="margin-top:24px; padding:20px; background:var(--surface-2); border-radius:12px; border:1px solid var(--border);">
+       <div style="font-size:12px; color:var(--muted); line-height:1.6;">
+         💡 <strong>Tip:</strong> Net profit is calculated as Gross Profit minus Operating Expenses. Accurate recording of COGS depends on correct "Cost Price" settings in the Product catalog.
+       </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

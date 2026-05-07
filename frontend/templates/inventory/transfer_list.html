@@ -1,0 +1,53 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Stock Transfers — Sajiir POS{% endblock %}
+{% block page_title %}Inter-Branch Transfers{% endblock %}
+{% block breadcrumb %}Dashboard / Inventory / Transfers{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th style="text-align:right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transfers %}
+        <tr>
+          <td style="color:var(--text); font-weight:600;">{{ t.transfer_number }}</td>
+          <td>{{ t.from_branch.name }}</td>
+          <td>{{ t.to_branch.name }}</td>
+          <td>{{ t.created_at|date:"d M Y" }}</td>
+          <td>
+            {% if t.status == 'draft' %}<span class="badge badge-slate">Draft</span>
+            {% elif t.status == 'approved' %}<span class="badge badge-indigo">Approved</span>
+            {% elif t.status == 'shipped' %}<span class="badge badge-amber">In Transit</span>
+            {% elif t.status == 'received' %}<span class="badge badge-green">Received</span>
+            {% else %}<span class="badge badge-red">{{ t.status|title }}</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right">
+            <a href="{% url 'transfer_detail' t.id %}" class="btn-secondary" style="padding:4px 12px; font-size:11px;">View Details</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align:center; padding:48px; color:var(--faint);">
+            No transfers found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

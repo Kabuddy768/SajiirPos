@@ -154,6 +154,10 @@ class ReturnService:
                     notes=f"Return from sale {original_sale.sale_number}",
                 )
 
+                if p['sale_item'].batch:
+                    p['sale_item'].batch.quantity_remaining += p['quantity']
+                    p['sale_item'].batch.save()
+
             # ----------------------------------------------------------
             # 6. Update original sale status
             # ----------------------------------------------------------

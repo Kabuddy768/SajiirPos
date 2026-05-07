@@ -46,7 +46,7 @@ class Sale(models.Model):
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed', db_index=True)
     
     # eTIMS
     etims_invoice_number = models.CharField(max_length=100, blank=True)
@@ -57,7 +57,7 @@ class Sale(models.Model):
     
     # Offline sync
     client_created_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     synced_at = models.DateTimeField(auto_now_add=True)
     is_offline_sale = models.BooleanField(default=False)
     offline_uuid = models.UUIDField(unique=True, default=uuid.uuid4)

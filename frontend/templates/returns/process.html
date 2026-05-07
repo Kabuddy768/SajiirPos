@@ -1,0 +1,88 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Process Return — Sajiir POS{% endblock %}
+{% block page_title %}Issue Refund / Void{% endblock %}
+{% block breadcrumb %}Dashboard / Sales / {{ sale.sale_number }} / Refund{% endblock %}
+
+{% block content %}
+
+<div style="max-width:800px;">
+  
+  <div class="alert alert-warning" style="background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); color:#fbbf24; padding:16px; border-radius:8px; margin-bottom:24px; font-size:14px;">
+    <strong>Warning:</strong> Processing a return will restore stock to the branch and update the sale status. Refunds exceeding KES {{ threshold }} require explicit manager override.
+  </div>
+
+  <form method="post" class="card">
+    {% csrf_token %}
+    
+    <div class="card-title">Select Items to Return</div>
+    <div class="card-subtitle">Original Receipt: {{ sale.sale_number }}</div>
+
+    <div class="table-wrap" style="margin-top:24px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th style="text-align:center">Sold</th>
+            <th style="text-align:center">Return Qty</th>
+            <th style="text-align:right">Refund Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in sale.items.all %}
+          <tr>
+            <td>
+              <div style="font-weight:500; color:var(--text);">{{ item.product.name }}</div>
+              <div style="font-size:11px; color:var(--faint);">Unit Price: {{ item.unit_price }}</div>
+            </td>
+            <td style="text-align:center;">{{ item.quantity }}</td>
+            <td style="text-align:center;">
+              <input type="number" name="qty_{{ item.id }}" step="0.001" min="0" max="{{ item.quantity }}" 
+                     value="0" style="width:80px; padding:4px 8px; text-align:center;">
+            </td>
+            <td style="text-align:right; font-family:monospace; color:var(--text);">
+              --
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; margin-top:32px;">
+      <div>
+        <label style="font-size:12px; color:var(--muted); margin-bottom:8px; display:block;">Refund Method</label>
+        <select name="refund_method" style="width:100%; padding:10px;">
+          <option value="cash">Cash</option>
+          <option value="mpesa">M-Pesa</option>
+          <option value="store_credit">Store Credit</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px; color:var(--muted); margin-bottom:8px; display:block;">Reason for Return</label>
+        <select name="reason" style="width:100%; padding:10px;">
+          <option value="damaged">Damaged / Expired</option>
+          <option value="wrong_item">Wrong Item Purchased</option>
+          <option value="customer_change">Customer Change of Mind</option>
+          <option value="billing_error">Billing / Pricing Error</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;">
+      <label style="font-size:12px; color:var(--muted); margin-bottom:8px; display:block;">Internal Notes (Optional)</label>
+      <textarea name="notes" rows="3" placeholder="Additional details..." style="width:100%; padding:12px;"></textarea>
+    </div>
+
+    <div style="margin-top:32px; display:flex; gap:16px; justify-content:flex-end;">
+      <a href="{% url 'sale_detail' sale.id %}" class="btn-secondary" style="padding:10px 24px;">Cancel</a>
+      <button type="submit" class="btn-primary" style="background:var(--error); border-color:var(--error); padding:10px 32px;">
+        Confirm & Process Refund
+      </button>
+    </div>
+
+  </form>
+
+</div>
+
+{% endblock %}

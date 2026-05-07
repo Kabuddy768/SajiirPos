@@ -1,0 +1,419 @@
+SAJIIR POS
+MVP Implementation Plan
+Tiers • Roles • Invitations • Admin Dashboard • Landing Page
+Module
+Status
+Priority
+Subscription Tiers & Pricing
+To Build
+P1 — Critical
+Staff Invitation System
+To Build
+P1 — Critical
+Role Enforcement
+Partial
+P1 — Critical
+Admin Dashboard (Custom)
+To Build
+P1 — Critical
+Landing Page
+To Build
+P2 — High
+Multi-Branch Role Support
+To Design
+P2 — High
+Payment Integration (M-Pesa/Stripe)
+To Build
+P2 — High
+eTIMS Integration
+Stub Only
+P3 — Post-MVP
+1. Role Architecture
+Your current codebase already defines five roles in TenantUser. Here is a complete breakdown of what each role should be allowed to do, including the multi-branch scenario you raised.
+1.1 The Five Roles Explained
+Role
+Who They Are
+What They Can Do
+Owner
+The person who purchased the subscription
+Everything. Manage tiers, billing, all branches, all staff. Cannot be removed.
+Admin
+A trusted operator — like an IT or ops head
+Full access to all branches. Manage products, staff, reports. Cannot change billing.
+Manager
+Branch manager
+Manage their assigned branch only. Approve returns, view reports, add products for that branch.
+Cashier
+Till operator
+Open session, make sales, process returns below KES 5,000 threshold. Cannot see reports.
+Auditor
+Accountant or compliance officer
+Read-only access to all reports and audit logs. Cannot make any changes.
+1.2 Do You Need a 6th Role?
+Based on your codebase and business model, here is a recommendation:
+RECOMMEND
+Add a Supplier contact role in future. For MVP, your five roles are sufficient. Do not add roles until you have a clear use case.
+1.3 Multi-Branch Role Problem — Your Question Answered
+You asked: "In Branch A I am a cashier, but in Branch B I am a manager. Same email. How does that work?"
+The answer is to separate two things that your current code conflates:
+Concept
+Model
+Scope
+Purpose
+Tenant Role
+TenantUser.role
+Whole tenant / all branches
+Highest-level permission cap
+Branch Role
+StaffProfile (new field)
+One specific branch
+Fine-grained branch permissions
+Implementation: Add branch_role to StaffProfile
+Add one field to your existing StaffProfile model:
+# apps/branches/models.py
+class StaffProfile(models.Model):
+    user    = ForeignKey(User, ...)
+    branch  = ForeignKey(Branch, ...)
+    is_active = BooleanField(default=True)
+    # ADD THIS:
+    branch_role = CharField(max_length=20, choices=ROLE_CHOICES, default='cashier')
+Now one user can have:
+StaffProfile(branch=A, branch_role="cashier")
+StaffProfile(branch=B, branch_role="manager")
+Update your get_user_role() permission helper to check StaffProfile.branch_role first, falling back to TenantUser.role if no profile exists for the current branch. The TenantUser.role acts as a ceiling — a cashier-level TenantUser can never exceed cashier even if a StaffProfile grants more.
+RULE
+TenantUser.role = ceiling. StaffProfile.branch_role = actual role for that branch. Never let branch_role exceed the ceiling.
+2. Subscription Tiers
+Your Tenant model already has a plan field. You just need to populate it and enforce it. Here is the recommended tier design.
+2.1 Tier Definitions
+Feature
+Tier 1 — Starter
+Tier 2 — Pro
+Tier 3 — Enterprise
+Monthly Price
+KES 1,500
+KES 4,500
+KES 12,000
+Branches
+1
+3
+Unlimited
+Staff Accounts
+5
+15
+Unlimited
+Cash Sessions
+Unlimited
+Unlimited
+Unlimited
+Sales Reports
+Basic (30 days)
+Full (1 year)
+Full + Export CSV
+Inventory Reports
+Basic
+Full
+Full
+eTIMS Integration
+No
+Yes
+Yes
+Stock Transfers
+No
+Yes
+Yes
+M-Pesa STK Push
+Yes
+Yes
+Yes
+WhatsApp Receipts
+No
+Yes
+Yes
+Loyalty Programme
+No
+Yes
+Yes
+Priority Support
+No
+Email
+Phone + Email
+2.2 How to Enforce Tiers in Code
+Create a single file: apps/tenants/tier_limits.py
+# apps/tenants/tier_limits.py
+TIER_LIMITS = {
+  'starter':    {'branches': 1,  'staff': 5,  'etims': False, 'transfers': False},
+  'pro':        {'branches': 3,  'staff': 15, 'etims': True,  'transfers': True},
+  'enterprise': {'branches': 999,'staff': 999,'etims': True,  'transfers': True},
+}
+def can_add_branch(tenant):
+    from apps.branches.models import Branch
+    limit = TIER_LIMITS.get(tenant.plan, {}).get("branches", 1)
+    return Branch.objects.filter(is_active=True).count() < limit
+def can_add_staff(tenant):
+    limit = TIER_LIMITS.get(tenant.plan, {}).get("staff", 5)
+    return TenantUser.objects.filter(is_active=True).count() < limit
+Call these functions in your views before creating a branch or inviting a staff member. Return a 403 with an upgrade prompt if the limit is reached.
+3. Staff Invitation System
+This is the most important thing to build first. It has no external dependencies and unblocks everything else. Here is the complete flow and implementation plan.
+3.1 The Invitation Flow
+Step
+Who
+What Happens
+1
+Owner / Admin
+Fills invite form: email + role + branch
+2
+System
+Creates StaffInvitation record with a unique token and 48h expiry
+3
+System
+Sends email: "You have been invited to join [Business Name] as [Role]"
+4
+Invitee
+Clicks link: yourdomain.com/invite/accept/?token=abc123
+5
+System
+Checks if email is already a user. If yes, assigns role. If no, shows signup form.
+6
+Invitee
+Sets password (first-time) or logs straight in (existing user)
+7
+System
+Creates TenantUser + StaffProfile. Marks token as used.
+8
+Invitee
+Redirected to their dashboard based on role
+3.2 New Model: StaffInvitation
+Create this in apps/branches/models.py or a new apps/invitations/ app:
+# apps/invitations/models.py
+import uuid
+class StaffInvitation(models.Model):
+    email        = EmailField()
+    role         = CharField(max_length=20, choices=TenantUser.ROLE_CHOICES)
+    branch       = ForeignKey(Branch, null=True, blank=True)
+    token        = UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    invited_by   = ForeignKey(settings.AUTH_USER_MODEL, on_delete=PROTECT)
+    expires_at   = DateTimeField()  # now() + 48 hours
+    accepted_at  = DateTimeField(null=True, blank=True)
+    is_used      = BooleanField(default=False)
+    created_at   = DateTimeField(auto_now_add=True)
+    def is_valid(self):
+        return not self.is_used and timezone.now() < self.expires_at
+3.3 New URLs Needed
+POST /dashboard/invite/send/ — Owner/Admin sends invite
+GET  /invite/accept/?token=<uuid> — Invitee clicks link in email
+POST /invite/accept/?token=<uuid> — Invitee submits password and joins
+3.4 Login Flow (Your Specific Request)
+You described a two-step login: first confirm the email exists, then enter password. This is a good UX pattern used by Slack, Notion, and others.
+Step
+URL
+Template
+Logic
+1 — Enter Email
+/login/
+login_email.html
+Check if email exists in DB. If yes, proceed. If no, show error or invite-only message.
+2 — Enter Password
+/login/password/
+login_password.html
+Standard Django authenticate(). On success, redirect based on role.
+3 — Role Redirect
+Middleware
+—
+Owner/Admin → /admin-dashboard/. Manager → /manager/. Cashier → /. Auditor → /reports/.
+NOTE
+Never tell the user "that email does not exist" on the login page — it leaks user data. Instead say "Invalid email or password" on both steps. Only confirm email existence after invite acceptance.
+4. Custom Admin Dashboard
+You want Owners and Admins to have a dedicated dashboard instead of the Django admin. Here is the full plan.
+4.1 Why Not Django Admin?
+Django admin exposes your data model directly — a bad actor with admin access can delete anything
+It cannot be themed to match your Tailwind dark UI
+It does not enforce tenant isolation by default
+It looks unprofessional for a SaaS product
+4.2 Dashboard Structure
+Section
+URL
+Who Sees It
+What It Shows
+Overview
+/dashboard/
+Owner, Admin, Manager
+Today's sales, revenue KPI cards, pending alerts
+Staff Management
+/dashboard/staff/
+Owner, Admin
+List all staff, invite new, deactivate, change role
+Branch Management
+/dashboard/branches/
+Owner, Admin
+List branches, add new (within tier limit), set eTIMS codes
+Products
+/dashboard/products/
+Owner, Admin, Manager
+CRUD products, categories, units
+Inventory
+/dashboard/inventory/
+Owner, Admin, Manager
+Stock levels, adjustments, transfers
+Reports
+/dashboard/reports/
+Owner, Admin, Manager, Auditor
+Sales, P&L, stock reports
+eTIMS Cockpit
+/dashboard/etims/
+Owner, Admin
+VAT liability, unsigned invoices, CSV export
+Subscription
+/dashboard/subscription/
+Owner only
+Current tier, usage meters, upgrade/downgrade
+Audit Logs
+/dashboard/audit/
+Owner, Admin, Auditor
+Full append-only audit trail
+4.3 How to Redirect After Login
+Add a post_login redirect function in your frontend_urls.py or a middleware:
+# apps/tenants/redirects.py
+def get_post_login_url(request):
+    role = get_user_role(request)
+    if role in ['owner', 'admin', 'manager']:
+        return '/dashboard/'
+    elif role == 'cashier':
+        return '/'  # POS till screen
+    elif role == 'auditor':
+        return '/dashboard/reports/'
+    return '/'
+Set LOGIN_REDIRECT_URL in settings to point to a view that calls this function rather than hardcoding a URL.
+4.4 Template Hierarchy for the Dashboard
+base_dashboard.html — dark sidebar layout, nav links, user info header
+dashboard/overview.html — extends base_dashboard
+dashboard/staff.html — extends base_dashboard
+dashboard/products.html — extends base_dashboard
+(etc.)
+The sidebar navigation should show/hide links based on role using a template context variable that is set in a context processor or view mixin.
+5. Landing Page & Onboarding Flow
+This is the public-facing side of the product. It must convert visitors into paying customers.
+5.1 Landing Page Sections (in order)
+Hero section — bold headline, one-line value prop, CTA button "Start Free Trial"
+Problem / Solution — "Still using paper receipts? Still not eTIMS compliant?"
+Feature highlights — Offline mode, M-Pesa, eTIMS, Multi-branch
+Pricing table — Three tier cards side by side. Middle card (Pro) highlighted.
+Testimonials / social proof
+FAQ section
+Footer with legal links
+5.2 Onboarding Flow After Tier Selection
+Step
+Page
+What Happens
+1
+/ (landing)
+Visitor sees tiers, clicks "Get Started" on chosen tier
+2
+/register/
+Form: Business name, your email, phone number, country
+3
+/register/verify-email/
+OTP or link sent to email. Must verify before proceeding.
+4
+/register/payment/
+M-Pesa STK push or card payment for chosen tier
+5
+System (background)
+On payment success: create Tenant, Domain, TenantUser(role=owner), send welcome email
+6
+/register/setup/
+First-time setup: add first branch name, eTIMS branch code (optional)
+7
+/dashboard/
+Owner lands on dashboard. Guided tour / onboarding checklist shown.
+CRITICAL
+The tenant creation MUST happen inside a Celery task triggered by the payment webhook — not inside the payment view directly. If the view times out, you end up with a paid customer and no account.
+5.3 Competing with Other POS Systems
+You asked how to market this well. Here are the genuine differentiators you already have:
+Your Feature
+Why It Matters
+What Competitors Lack
+Offline-First (PWA)
+Sales continue when internet drops — very common in Kenya
+Most cloud POS breaks without internet
+Native M-Pesa STK Push
+No need for a separate M-Pesa device
+Most POS requires a POS terminal for M-Pesa
+KRA eTIMS Built-In
+Legal compliance out of the box
+Most small POS in Kenya are not eTIMS ready
+Multi-Branch from Day 1
+Scales as the business grows
+Many POS charge per terminal, not per branch
+Stock Ledger (not counter)
+Full audit trail of every stock movement
+Most POS just store a number
+Carton-to-Unit Conversion
+Built for supermarkets and FMCG
+Rare feature in Kenyan POS software
+6. Recommended Build Order (MVP Roadmap)
+Do not build everything at once. Ship a working product as fast as possible and iterate.
+Week 1 — Fix What Is Broken
+Fix CACHES config to use Redis (M-Pesa will silently fail without this)
+Fix cashier.username → cashier.email in AuditService
+Override CustomerViewSet.destroy() to soft-delete
+Add branch_role to StaffProfile and update get_user_role()
+Run python manage.py check — must show 0 errors
+Week 2 — Staff Invitations
+Create apps/invitations/ with StaffInvitation model and migration
+Build invite send view + template (owner/admin only)
+Build invite accept view + template (public, token-gated)
+Wire up email sending using Django send_mail()
+Test full flow: invite → email → accept → login → role redirect
+Week 3 — Custom Admin Dashboard
+Create base_dashboard.html template with dark sidebar
+Build overview view with today's sales KPI cards
+Build staff management view (list, invite, deactivate)
+Build products CRUD view
+Wire role-based navigation
+Week 4 — Tier Enforcement
+Create tier_limits.py with TIER_LIMITS dictionary
+Add checks to branch creation and staff invitation
+Add subscription page showing current tier and usage
+Add upgrade prompts when limits are hit
+Week 5 — Landing Page & Onboarding
+Design and build public landing page
+Build registration + email verification flow
+Wire payment (start with manual payment confirmation for MVP)
+Build tenant auto-creation on payment confirmation
+First-time setup wizard for new owners
+Week 6 — Polish & MVP Showcase
+End-to-end test: register → pay → invite staff → open till → make sale → see report
+Fix all bugs found in testing
+Prepare demo environment with seed data
+Record a 3-minute demo video for potential customers
+MVP DEFINITION
+An owner can sign up, pay, invite a cashier, the cashier can make a sale on the POS, and the owner can see the sale in the dashboard. Everything else is Phase 2.
+7. Known Bugs to Fix Before Launch
+Bug
+File
+Fix
+cashier.username does not exist on CustomUser
+apps/audit/services.py line 48
+Change to cashier.email or cashier.get_full_name()
+No CACHES config — M-Pesa cache uses LocMemCache
+pos_project/config/settings/base.py
+Add CACHES using django-redis pointing to REDIS_URL
+CustomerViewSet allows hard delete
+apps/customers/views.py
+Override destroy() to set is_active=False
+ProductBatch.quantity_remaining not updated on return
+apps/returns/services.py
+After StockService.adjust() on return, also update batch.quantity_remaining
+Product.clean() not called on GRN cost update
+apps/purchasing/services.py
+Add product.full_clean() or manual check after updating cost_price
+No rate limiting on sync endpoint
+api/v1/sync.py
+Add DRF throttle class or django-ratelimit decorator
+M-Pesa callback has no HMAC verification
+apps/payments/views.py
+Add HMAC-SHA256 check against MPESA_CALLBACK_SECRET env var
+— End of Sajiir POS Implementation Plan —
+Read Section 6 (Build Order) and Section 7 (Known Bugs) first

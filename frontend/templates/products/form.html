@@ -1,0 +1,132 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}{{ title }} — Sajiir POS{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block breadcrumb %}Dashboard / Products / {{ title }}{% endblock %}
+
+{% block content %}
+<div style="max-width:800px;">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-title">Basic Information</div>
+      <div class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+          {{ form.name }}
+          {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
+        </div>
+        
+        <div class="form-group">
+          <label for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+          {{ form.category }}
+          {% if form.category.errors %}<div class="field-error">{{ form.category.errors.0 }}</div>{% endif %}
+        </div>
+        
+        <div class="form-group">
+          <label for="{{ form.sku.id_for_label }}">{{ form.sku.label }}</label>
+          {{ form.sku }}
+          {% if form.sku.errors %}<div class="field-error">{{ form.sku.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.barcode.id_for_label }}">{{ form.barcode.label }}</label>
+          {{ form.barcode }}
+          {% if form.barcode.errors %}<div class="field-error">{{ form.barcode.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.is_active.id_for_label }}">Status</label>
+          <div class="flex items-center gap-2 mt-2">
+            {{ form.is_active }} 
+            <span class="text-sm text-muted">Is Active</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+      
+      <div class="card">
+        <div class="card-title">Pricing & Tax</div>
+        <div class="form-group">
+          <label for="{{ form.cost_price.id_for_label }}">{{ form.cost_price.label }}</label>
+          {{ form.cost_price }}
+          {% if form.cost_price.errors %}<div class="field-error">{{ form.cost_price.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+          <label for="{{ form.selling_price.id_for_label }}">{{ form.selling_price.label }}</label>
+          {{ form.selling_price }}
+          {% if form.selling_price.errors %}<div class="field-error">{{ form.selling_price.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+          <label for="{{ form.tax_type.id_for_label }}">{{ form.tax_type.label }}</label>
+          {{ form.tax_type }}
+        </div>
+        <div class="form-group">
+          <div class="flex items-center gap-2">
+            {{ form.is_tax_inclusive }} 
+            <span class="text-sm text-muted">Price includes Tax</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Stock Control</div>
+        <div class="form-group">
+          <label for="{{ form.minimum_stock_level.id_for_label }}">{{ form.minimum_stock_level.label }}</label>
+          {{ form.minimum_stock_level }}
+        </div>
+        <div class="form-group">
+          <label for="{{ form.reorder_quantity.id_for_label }}">{{ form.reorder_quantity.label }}</label>
+          {{ form.reorder_quantity }}
+        </div>
+        <div class="form-group">
+          <label for="{{ form.sale_unit.id_for_label }}">{{ form.sale_unit.label }}</label>
+          {{ form.sale_unit }}
+        </div>
+        <div class="form-group">
+          <div class="flex items-center gap-2">
+            {{ form.track_expiry }} 
+            <span class="text-sm text-muted">Track Expiry Dates</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+      <div class="card-title">Media & Settings</div>
+      <div class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div class="form-group">
+          <label for="{{ form.image.id_for_label }}">{{ form.image.label }}</label>
+          {{ form.image }}
+          {% if product and product.image %}
+            <div style="margin-top:10px;">
+              <img src="{{ product.image.url }}" style="max-width:100px; border-radius:8px;">
+            </div>
+          {% endif %}
+        </div>
+        <div class="form-group">
+           <div class="flex flex-col gap-3 mt-4">
+              <div class="flex items-center gap-2">
+                {{ form.is_weighable }} 
+                <span class="text-sm text-muted">Is Weighable / Loose item</span>
+              </div>
+              <div class="flex items-center gap-2">
+                {{ form.allow_discount }} 
+                <span class="text-sm text-muted">Allow line-item discounts</span>
+              </div>
+           </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:32px; justify-content: flex-end;">
+      <a href="{% url 'product_list' %}" class="btn-secondary">Cancel</a>
+      <button type="submit" class="btn-primary" style="padding:10px 40px;">Save Product</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Accept Invitation — Sajiir POS{% endblock %}
+{% block card_title %}Accept Invitation{% endblock %}
+{% block card_subtitle %}
+  You've been invited as a <strong style="color:#c7d2fe">{{ invitation.get_role_display }}</strong>
+  {% if invitation.branch %} at <strong style="color:#c7d2fe">{{ invitation.branch.name }}</strong>{% endif %}
+{% endblock %}
+
+{% block card_body %}
+
+{% if existing_user %}
+  {# ── Existing user: no password needed ── #}
+  <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">
+    We found an existing account for <strong style="color:var(--text)">{{ invitation.email }}</strong>.
+    Click below to join this workspace — you'll be logged in automatically.
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+    <button type="submit" id="btn-accept-existing" class="btn-primary">
+      Join as {{ invitation.get_role_display }} →
+    </button>
+  </form>
+
+{% else %}
+  {# ── New user: set name + password ── #}
+  <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">
+    Create your account for <strong style="color:var(--text)">{{ invitation.email }}</strong>.
+  </p>
+
+  <form method="post" id="accept-form">
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+      <div class="form-group" style="margin-bottom:0">
+        <label for="id_first_name">First Name</label>
+        {{ form.first_name }}
+        {% if form.first_name.errors %}
+          {% for err in form.first_name.errors %}
+            <div class="field-error">{{ err }}</div>
+          {% endfor %}
+        {% endif %}
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label for="id_last_name">Last Name</label>
+        {{ form.last_name }}
+        {% if form.last_name.errors %}
+          {% for err in form.last_name.errors %}
+            <div class="field-error">{{ err }}</div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="id_password">Password</label>
+      {{ form.password }}
+      {% if form.password.errors %}
+        {% for err in form.password.errors %}
+          <div class="field-error">{{ err }}</div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="id_confirm_password">Confirm Password</label>
+      {{ form.confirm_password }}
+      {% if form.confirm_password.errors %}
+        {% for err in form.confirm_password.errors %}
+          <div class="field-error">{{ err }}</div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+      {% for err in form.non_field_errors %}
+        <div class="field-error" style="margin-bottom:12px">{{ err }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <button type="submit" id="btn-create-account" class="btn-primary">
+      Create Account &amp; Join →
+    </button>
+  </form>
+{% endif %}
+
+{% endblock %}
+
+{% block auth_footer %}
+<div class="auth-footer">
+  <a href="{% url 'login' %}">Already have an account? Sign in</a>
+</div>
+{% endblock %}

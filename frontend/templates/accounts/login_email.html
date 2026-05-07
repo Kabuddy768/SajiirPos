@@ -1,0 +1,34 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Sign In — Sajiir POS{% endblock %}
+{% block card_title %}Sign In{% endblock %}
+{% block card_subtitle %}Enter your email to continue{% endblock %}
+
+{% block card_body %}
+<form method="post" id="login-email-form">
+  {% csrf_token %}
+  <div class="form-group">
+    <label for="id_email_input">Email Address</label>
+    <input
+      type="email"
+      id="id_email_input"
+      name="email"
+      autocomplete="email"
+      autofocus
+      required
+      placeholder="you@example.com"
+      value="{{ email_value|default:'' }}"
+    >
+    {% if error %}
+      <div class="field-error" style="margin-top:6px">{{ error }}</div>
+    {% endif %}
+  </div>
+  <button type="submit" id="btn-continue-email" class="btn-primary">Continue →</button>
+</form>
+{% endblock %}
+
+{% block auth_footer %}
+<div class="auth-footer" style="color:var(--text-faint);font-size:12px;padding-top:8px;">
+  Only invited staff can access this system.
+</div>
+{% endblock %}

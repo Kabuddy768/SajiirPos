@@ -7,7 +7,9 @@ class Payment(models.Model):
         ('card', 'Card'),
         ('store_credit', 'Store Credit'),
         ('bank_transfer', 'Bank Transfer'),
+        ('points', 'Loyalty Points'),
     ]
+
 
     STATUS_CHOICES = [
         ('pending', 'Pending'),

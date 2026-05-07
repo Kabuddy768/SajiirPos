@@ -1,0 +1,110 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Products — Sajiir POS{% endblock %}
+{% block page_title %}Product Catalog{% endblock %}
+{% block breadcrumb %}Dashboard / Products{% endblock %}
+
+{% block topbar_actions %}
+{% if user_role in 'owner admin manager' %}
+  <a href="{% url 'product_create' %}" id="btn-add-product"
+     style="padding:8px 16px;background:var(--primary);color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">
+    + Add Product
+  </a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{# ── Filters ────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:24px; padding:16px;">
+  <form method="get" class="flex gap-4 items-end">
+    <div style="flex:1">
+      <label for="id_q" style="font-size:11px; margin-bottom:4px;">Search Products</label>
+      <input type="text" name="q" id="id_q" value="{{ search_query }}" placeholder="Name, SKU, or Barcode..." style="padding:8px 12px;">
+    </div>
+    <div style="width:200px">
+      <label for="id_category" style="font-size:11px; margin-bottom:4px;">Category</label>
+      <select name="category" id="id_category" style="padding:8px 12px;">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"i" %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-primary" style="padding:9px 20px;">Filter</button>
+    <a href="{% url 'product_list' %}" class="btn-secondary" style="padding:8px 16px;">Clear</a>
+  </form>
+</div>
+
+{# ── Products Table ─────────────────────────────────────────── #}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>SKU / Barcode</th>
+          <th>Category</th>
+          <th>Cost</th>
+          <th>Price</th>
+          <th>Status</th>
+          {% if user_role in 'owner admin manager' %}
+          <th style="text-align:right">Actions</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+        <tr>
+          <td>
+            <div class="flex items-center gap-3">
+              {% if product.image %}
+                <img src="{{ product.image.url }}" style="width:32px; height:32px; border-radius:4px; object-fit:cover; border:1px solid var(--border)">
+              {% else %}
+                <div style="width:32px; height:32px; border-radius:4px; background:var(--surface-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:10px;">📦</div>
+              {% endif %}
+              <div style="color:var(--text); font-weight:500;">{{ product.name }}</div>
+            </div>
+          </td>
+          <td>
+            <div style="font-size:12px; color:var(--muted)">{{ product.sku }}</div>
+            {% if product.barcode %}<div style="font-size:10px; color:var(--faint)">{{ product.barcode }}</div>{% endif %}
+          </td>
+          <td><span class="badge badge-slate">{{ product.category.name }}</span></td>
+          <td>KES {{ product.cost_price|floatformat:2 }}</td>
+          <td style="color:var(--text)">KES {{ product.selling_price|floatformat:2 }}</td>
+          <td>
+            {% if product.is_active %}
+              <span class="badge badge-green">Active</span>
+            {% else %}
+              <span class="badge badge-red">Inactive</span>
+            {% endif %}
+          </td>
+          {% if user_role in 'owner admin manager' %}
+          <td style="text-align:right">
+            <div class="flex justify-end gap-2">
+              <a href="{% url 'product_update' product.id %}" class="p-1 text-muted hover:text-indigo-400" title="Edit">
+                <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              </a>
+              {% if user_role in 'owner admin' %}
+              <a href="{% url 'product_delete' product.id %}" class="p-1 text-muted hover:text-rose-400" title="Deactivate">
+                <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center; padding:48px; color:var(--faint);">
+            No products found matching your criteria.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

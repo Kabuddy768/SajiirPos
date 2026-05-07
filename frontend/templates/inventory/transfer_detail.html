@@ -1,0 +1,112 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Transfer {{ transfer.transfer_number }} — Sajiir POS{% endblock %}
+{% block page_title %}Transfer Details{% endblock %}
+{% block breadcrumb %}Dashboard / Inventory / Transfers / {{ transfer.transfer_number }}{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; grid-template-columns: 1fr 300px; gap:24px;">
+  
+  <div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+        <div>
+          <div class="card-title">{{ transfer.transfer_number }}</div>
+          <div class="card-subtitle">Inter-branch movement record</div>
+        </div>
+        <div>
+          {% if transfer.status == 'draft' %}<span class="badge badge-slate" style="padding:6px 12px; font-size:13px;">Draft</span>
+          {% elif transfer.status == 'approved' %}<span class="badge badge-indigo" style="padding:6px 12px; font-size:13px;">Approved</span>
+          {% elif transfer.status == 'shipped' %}<span class="badge badge-amber" style="padding:6px 12px; font-size:13px;">In Transit</span>
+          {% elif transfer.status == 'received' %}<span class="badge badge-green" style="padding:6px 12px; font-size:13px;">Received</span>
+          {% else %}<span class="badge badge-red" style="padding:6px 12px; font-size:13px;">{{ transfer.status|title }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th style="text-align:center">Requested</th>
+              <th style="text-align:center">Shipped</th>
+              <th style="text-align:center">Received</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in transfer.items.all %}
+            <tr>
+              <td style="color:var(--text); font-weight:500;">{{ item.product.name }}</td>
+              <td style="text-align:center">{{ item.quantity_requested }}</td>
+              <td style="text-align:center">{{ item.quantity_shipped|default:"0" }}</td>
+              <td style="text-align:center">{{ item.quantity_received|default:"0" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if transfer.notes %}
+    <div class="card" style="margin-top:24px;">
+      <div class="card-title" style="font-size:13px;">Notes</div>
+      <p style="font-size:13px; color:var(--muted); margin-top:8px;">{{ transfer.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-title" style="font-size:14px;">Logistics</div>
+      <div class="flex flex-col gap-4 mt-4">
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Source Branch</div>
+          <div style="font-size:13px; color:var(--text);">{{ transfer.from_branch.name }}</div>
+        </div>
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Destination</div>
+          <div style="font-size:13px; color:var(--text);">{{ transfer.to_branch.name }}</div>
+        </div>
+        <hr style="border:0; border-top:1px solid var(--border)">
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Requested By</div>
+          <div style="font-size:13px; color:var(--muted);">{{ transfer.requested_by.email }}</div>
+          <div style="font-size:11px; color:var(--faint);">{{ transfer.created_at|date:"d M Y, H:i" }}</div>
+        </div>
+        {% if transfer.approved_by %}
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Approved By</div>
+          <div style="font-size:13px; color:var(--muted);">{{ transfer.approved_by.email }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── Lifecycle Actions ──────────────────────────────────── #}
+    <div class="card" style="margin-top:24px;">
+      <div class="card-title" style="font-size:14px;">Actions</div>
+      <div class="flex flex-col gap-3 mt-4">
+        <form method="post">
+          {% csrf_token %}
+          {% if transfer.status == 'draft' and user_role in 'owner admin manager' %}
+            <button type="submit" name="action" value="approve" class="btn-primary" style="width:100%; margin-bottom:8px;">Approve Transfer</button>
+            <button type="submit" name="action" value="cancel" class="btn-secondary" style="width:100%; color:var(--error);">Cancel</button>
+          {% elif transfer.status == 'approved' %}
+            <button type="submit" name="action" value="ship" class="btn-primary" style="width:100%;">Ship Items</button>
+          {% elif transfer.status == 'shipped' %}
+            <button type="submit" name="action" value="receive" class="btn-primary" style="width:100%;">Mark as Received</button>
+          {% else %}
+            <div style="text-align:center; padding:12px; color:var(--faint); font-size:12px;">
+              No actions available for status: <strong>{{ transfer.status }}</strong>
+            </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

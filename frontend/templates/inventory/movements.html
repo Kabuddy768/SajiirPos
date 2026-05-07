@@ -1,0 +1,57 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Stock Movements — Sajiir POS{% endblock %}
+{% block page_title %}Stock History{% endblock %}
+{% block breadcrumb %}Dashboard / Inventory / Movements{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="card-title">Recent Movements</div>
+  <div class="card-subtitle">Every stock adjustment, sale, and transfer is logged here.</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Product</th>
+          <th>Branch</th>
+          <th>Reason</th>
+          <th>Qty</th>
+          <th>Balance</th>
+          <th>User</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movements %}
+        <tr>
+          <td style="font-size:11px;">{{ m.created_at|date:"d/m H:i" }}</td>
+          <td>
+            <div style="color:var(--text); font-weight:500;">{{ m.product.name }}</div>
+          </td>
+          <td><span class="text-xs">{{ m.branch.name }}</span></td>
+          <td>
+            <span class="badge {% if m.quantity > 0 %}badge-indigo{% else %}badge-slate{% endif %}">
+              {{ m.get_reason_display }}
+            </span>
+          </td>
+          <td style="font-weight:600; color:{% if m.quantity > 0 %}var(--success){% else %}var(--error){% endif %};">
+            {{ m.quantity|floatformat:2 }}
+          </td>
+          <td>{{ m.quantity_after|floatformat:2 }}</td>
+          <td style="font-size:11px;">{{ m.performed_by.email|truncatechars:15 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center; padding:48px; color:var(--faint);">
+            No movements recorded.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

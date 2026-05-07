@@ -1,0 +1,71 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Invite Staff — Sajiir POS{% endblock %}
+{% block page_title %}Invite a Team Member{% endblock %}
+{% block breadcrumb %}Dashboard / Staff / Invite{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;">
+  <div class="card">
+    <div class="card-title">Send Invitation</div>
+    <div class="card-subtitle">
+      The invitee will receive an email with a secure link (valid 48 hours).
+    </div>
+
+    <form method="post" id="invite-form">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label for="id_email">Email Address</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          {% for err in form.email.errors %}<div class="field-error">{{ err }}</div>{% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label for="id_role">Role</label>
+        {{ form.role }}
+        {% if form.role.errors %}
+          {% for err in form.role.errors %}<div class="field-error">{{ err }}</div>{% endfor %}
+        {% endif %}
+        <div style="font-size:11px;color:var(--faint);margin-top:6px;">
+          Cashiers can only make sales. Managers run a branch. Admins access everything.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="id_branch">Branch (optional)</label>
+        {{ form.branch }}
+        {% if form.branch.errors %}
+          {% for err in form.branch.errors %}<div class="field-error">{{ err }}</div>{% endfor %}
+        {% endif %}
+        <div style="font-size:11px;color:var(--faint);margin-top:6px;">
+          Leave blank for Owners and Admins who work across all branches.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <button type="submit" id="btn-send-invite" class="btn-primary">Send Invitation →</button>
+        <a href="{% url 'dashboard_staff' %}" id="link-cancel-invite" class="btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  {# ── Role Reference Card ─────────────────────── #}
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="font-size:13px;margin-bottom:12px;">Role Permissions Reference</div>
+    <table>
+      <thead>
+        <tr><th>Role</th><th>Can Do</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-amber">Admin</span></td><td style="color:var(--muted)">Full access to all branches. Manage products, staff, reports.</td></tr>
+        <tr><td><span class="badge badge-indigo">Manager</span></td><td style="color:var(--muted)">Assigned branch only. Approve returns, view reports, add products.</td></tr>
+        <tr><td><span class="badge badge-slate">Cashier</span></td><td style="color:var(--muted)">Open session, make sales, process returns under KES 5,000.</td></tr>
+        <tr><td><span class="badge badge-green">Auditor</span></td><td style="color:var(--muted)">Read-only reports and audit logs. No transaction access.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,16 @@
 from django.db import models
 from django.conf import settings
 
+
+ROLE_CHOICES = [
+    ('owner', 'Owner'),
+    ('admin', 'Admin'),
+    ('manager', 'Manager'),
+    ('cashier', 'Cashier'),
+    ('auditor', 'Auditor'),
+]
+
+
 class Branch(models.Model):
     name = models.CharField(max_length=150)
     address = models.TextField(blank=True)
@@ -13,10 +23,35 @@ class Branch(models.Model):
     def __str__(self):
         return self.name
 
+
 class StaffProfile(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profiles')
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='staff_members')
+    """
+    Links a user to a specific branch with a branch-level role.
+
+    TenantUser.role acts as the ceiling; StaffProfile.branch_role is the
+    effective role for that specific branch.  branch_role must never exceed
+    the ceiling defined by TenantUser.role.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='staff_profiles',
+    )
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        related_name='staff_members',
+    )
     is_active = models.BooleanField(default=True)
-    
+    branch_role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='cashier',
+        help_text='Effective role for this branch. Cannot exceed the TenantUser.role ceiling.',
+    )
+
+    class Meta:
+        unique_together = ('user', 'branch')
+
     def __str__(self):
-        return f"{self.user.email} at {self.branch.name}"
+        return f"{self.user.email} — {self.branch_role} at {self.branch.name}"

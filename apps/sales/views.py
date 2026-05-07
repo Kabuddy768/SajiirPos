@@ -106,7 +106,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         receipt_text = f"=== {sale.branch.name} ===\n"
         receipt_text += f"Sale #: {sale.sale_number}\n"
         receipt_text += f"Date: {sale.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-        receipt_text += f"Cashier: {sale.cashier.username}\n"
+        receipt_text += f"Cashier: {sale.cashier.email}\n"
         receipt_text += "--------------------------\n"
         
         for item in sale.items.all():
@@ -135,26 +135,30 @@ class ProductLookupViewSet(viewsets.GenericViewSet):
         barcode = request.query_params.get('barcode')
         try:
             product = Product.objects.get(barcode=barcode)
-            return Response([ProductSerializer(product).data]) # Return as list
+            return Response([ProductSerializer(product, context={'request': request}).data]) # Return as list
         except Product.DoesNotExist:
             return Response([], status=status.HTTP_404_NOT_FOUND) # Return empty list
     @action(detail=True, methods=['get'], url_path='global-stock')
     def global_stock(self, request, pk=None):
         product = self.get_object()
-        from apps.products.models import ProductBatch
-        from django.db.models import Sum
+        from apps.inventory.models import BranchStock
         
         # Get stock per branch
-        stock_per_branch = ProductBatch.objects.filter(
-            product=product
-        ).values('branch__name', 'branch__id').annotate(
-            total_stock=Sum('quantity_remaining')
-        ).filter(total_stock__gt=0)
+        stock_per_branch = BranchStock.objects.filter(
+            product=product,
+            quantity__gt=0
+        ).values('branch__name', 'branch__id', 'quantity')
         
         return Response({
             'product_name': product.name,
             'sku': product.sku,
-            'branches': list(stock_per_branch)
+            'branches': [
+                {
+                    'branch__name': item['branch__name'],
+                    'branch__id': item['branch__id'],
+                    'total_stock': float(item['quantity'])
+                } for item in stock_per_branch
+            ]
         })
 
 class CashSessionViewSet(viewsets.ModelViewSet):

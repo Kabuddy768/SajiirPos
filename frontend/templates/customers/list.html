@@ -1,0 +1,76 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Customers — Sajiir POS{% endblock %}
+{% block page_title %}Customer Directory{% endblock %}
+{% block breadcrumb %}Dashboard / Customers{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'customer_create' %}" class="btn-primary" style="font-size:13px;">
+  + Add Customer
+</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── Search ────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:24px; padding:16px;">
+  <form method="get" class="flex gap-4">
+    <input type="text" name="q" value="{{ search_query }}" placeholder="Search by name or phone..." style="flex:1; padding:10px 16px;">
+    <button type="submit" class="btn-secondary" style="padding:10px 24px;">Search</button>
+  </form>
+</div>
+
+{# ── Customers Table ────────────────────────────────────────── #}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Phone</th>
+          <th>Loyalty Points</th>
+          <th>Tier</th>
+          <th>Last Seen</th>
+          <th style="text-align:right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td>
+            <div style="font-weight:600; color:var(--text);">{{ c.name }}</div>
+            <div style="font-size:11px; color:var(--faint);">{{ c.email }}</div>
+          </td>
+          <td><span style="font-family:monospace; font-size:13px;">{{ c.phone }}</span></td>
+          <td style="font-weight:700; color:var(--success);">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <svg style="width:14px; height:14px;" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+              {{ c.loyalty_points }} pts
+            </div>
+          </td>
+          <td>
+            {% if c.tier %}
+              <span class="badge badge-indigo">{{ c.tier.name }}</span>
+            {% else %}
+              <span class="badge badge-slate">Standard</span>
+            {% endif %}
+          </td>
+          <td style="font-size:12px;">{{ c.last_purchase_at|date:"d M Y"|default:"Never" }}</td>
+          <td style="text-align:right">
+            <a href="{% url 'customer_detail' c.id %}" class="btn-secondary" style="padding:4px 10px; font-size:11px;">View</a>
+            <a href="{% url 'customer_update' c.id %}" class="btn-secondary" style="padding:4px 10px; font-size:11px;">Edit</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align:center; padding:48px; color:var(--faint);">No customers found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

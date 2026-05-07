@@ -8,10 +8,12 @@ from decimal import Decimal
 from apps.customers.models import Customer
 from apps.products.models import ProductBatch
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
 from apps.tenants.permissions import RequiresBranch, IsCashier
 
 class SyncSalesView(APIView):
     permission_classes = [IsAuthenticated, RequiresBranch, IsCashier]
+    throttle_classes = [UserRateThrottle]
 
     def post(self, request, *args, **kwargs):
         payload = request.data

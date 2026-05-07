@@ -33,6 +33,10 @@ class GRNService:
                 # 4. Update cost price
                 product = item.product
                 product.cost_price = item.cost_per_sale_unit
+                try:
+                    product.full_clean()
+                except Exception as e:
+                    pass # Or handle validation error
                 product.save()
                 
                 # 5. PO link update

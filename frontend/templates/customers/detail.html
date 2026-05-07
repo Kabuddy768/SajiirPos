@@ -1,0 +1,74 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}{{ customer.name }} — Sajiir POS{% endblock %}
+{% block page_title %}Customer Profile{% endblock %}
+{% block breadcrumb %}Dashboard / Customers / {{ customer.name }}{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; grid-template-columns: 350px 1fr; gap:24px; align-items:start;">
+  
+  {# ── Profile Card ─────────────────────────────────────────── #}
+  <div>
+    <div class="card" style="text-align:center; padding:32px;">
+      <div style="width:80px; height:80px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:32px; font-weight:800; margin:0 auto 16px;">
+        {{ customer.name|slice:":1" }}
+      </div>
+      <div style="font-size:20px; font-weight:700; color:#fff;">{{ customer.name }}</div>
+      <div style="font-size:14px; color:var(--muted); margin-bottom:24px;">{{ customer.phone }}</div>
+      
+      <div style="background:var(--surface-2); padding:16px; border-radius:12px; margin-bottom:24px;">
+        <div style="font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Loyalty Balance</div>
+        <div style="font-size:24px; font-weight:800; color:var(--success);">{{ customer.loyalty_points }} <span style="font-size:13px; font-weight:400;">Points</span></div>
+      </div>
+
+      <div style="text-align:left; font-size:13px; color:var(--muted); line-height:1.8;">
+        <div><strong>Email:</strong> {{ customer.email|default:"--" }}</div>
+        <div><strong>Tier:</strong> {{ customer.tier.name|default:"Standard" }}</div>
+        <div><strong>Joined:</strong> {{ customer.created_at|date:"d M Y" }}</div>
+      </div>
+
+      <a href="{% url 'customer_update' customer.id %}" class="btn-secondary" style="width:100%; margin-top:24px;">Edit Profile</a>
+    </div>
+  </div>
+
+  {# ── Purchase History ────────────────────────────────────── #}
+  <div>
+    <div class="card">
+      <div class="card-title">Recent Purchases</div>
+      <div class="table-wrap" style="margin-top:20px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Receipt</th>
+              <th>Date</th>
+              <th>Branch</th>
+              <th style="text-align:right">Total</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sale in sales %}
+            <tr>
+              <td style="font-weight:600; color:var(--text);">{{ sale.sale_number }}</td>
+              <td style="font-size:12px;">{{ sale.created_at|date:"d/m/Y" }}</td>
+              <td style="font-size:12px;">{{ sale.branch.name }}</td>
+              <td style="text-align:right; font-weight:600;">{{ sale.currency }} {{ sale.total_amount|floatformat:2 }}</td>
+              <td style="text-align:right">
+                <a href="{% url 'sale_detail' sale.id %}" class="btn-secondary" style="padding:4px 10px; font-size:11px;">View Receipt</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="text-align:center; padding:48px; color:var(--faint);">No purchase history found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

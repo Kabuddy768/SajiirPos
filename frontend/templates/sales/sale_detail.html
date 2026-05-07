@@ -1,0 +1,133 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Sale {{ sale.sale_number }} — Sajiir POS{% endblock %}
+{% block page_title %}Receipt Details{% endblock %}
+{% block breadcrumb %}Dashboard / Sales / {{ sale.sale_number }}{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; grid-template-columns: 1fr 350px; gap:24px; align-items:start;">
+  
+  {# ── Receipt Column ────────────────────────────────────────── #}
+  <div>
+    <div class="card" style="padding:40px; background:#fff; color:#000; border:none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius:4px;">
+      
+      {# Receipt Header #}
+      <div style="text-align:center; border-bottom:1px dashed #ccc; padding-bottom:20px; margin-bottom:20px;">
+        <h2 style="margin:0; font-size:24px; text-transform:uppercase; letter-spacing:2px;">{{ request.tenant.name }}</h2>
+        <div style="font-size:12px; color:#666; margin-top:4px;">{{ sale.branch.name }}</div>
+        {% if sale.branch.kra_pin %}
+          <div style="font-size:11px; color:#666;">PIN: {{ sale.branch.kra_pin }}</div>
+        {% endif %}
+      </div>
+
+      <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:24px;">
+        <div>
+          <div><strong>Receipt #:</strong> {{ sale.sale_number }}</div>
+          <div><strong>Date:</strong> {{ sale.created_at|date:"d/m/Y H:i" }}</div>
+        </div>
+        <div style="text-align:right;">
+          <div><strong>Cashier:</strong> {{ sale.cashier.get_full_name|default:sale.cashier.email }}</div>
+          <div><strong>Status:</strong> {{ sale.status|upper }}</div>
+        </div>
+      </div>
+
+      {# Items Table #}
+      <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
+        <thead>
+          <tr style="border-bottom:1px solid #000; font-size:11px; text-transform:uppercase;">
+            <th style="text-align:left; padding:8px 0;">Item</th>
+            <th style="text-align:center; padding:8px 0;">Qty</th>
+            <th style="text-align:right; padding:8px 0;">Price</th>
+            <th style="text-align:right; padding:8px 0;">Total</th>
+          </tr>
+        </thead>
+        <tbody style="font-size:13px;">
+          {% for item in sale.items.all %}
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:12px 0;">
+               {{ item.product.name }}
+               {% if item.discount_amount > 0 %}
+                 <div style="font-size:10px; color:#e11d48;">Discount: -{{ item.discount_amount }}</div>
+               {% endif %}
+            </td>
+            <td style="text-align:center; padding:12px 0;">{{ item.quantity }}</td>
+            <td style="text-align:right; padding:12px 0;">{{ item.unit_price|floatformat:2 }}</td>
+            <td style="text-align:right; padding:12px 0; font-weight:600;">{{ item.total_price|floatformat:2 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {# Totals #}
+      <div style="margin-left:auto; width:200px; font-size:14px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span>Subtotal</span>
+          <span>{{ sale.total_amount|floatformat:2 }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; color:#666;">
+          <span>Tax</span>
+          <span>Included</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding-top:12px; border-top:2px solid #000; font-weight:800; font-size:18px;">
+          <span>TOTAL</span>
+          <span>{{ sale.currency }} {{ sale.total_amount|floatformat:2 }}</span>
+        </div>
+      </div>
+
+      {# eTIMS Footer #}
+      {% if sale.etims_invoice_number %}
+      <div style="margin-top:40px; padding-top:20px; border-top:1px dashed #ccc; text-align:center; font-family:monospace; font-size:11px;">
+        <div>eTIMS INV: {{ sale.etims_invoice_number }}</div>
+        <div>Control Code: {{ sale.etims_control_code }}</div>
+        <div style="margin-top:10px;">*** THANK YOU ***</div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  {# ── Actions Column ────────────────────────────────────────── #}
+  <div>
+    <div class="card">
+      <div class="card-title" style="font-size:14px;">Actions</div>
+      <div class="flex flex-col gap-3 mt-4">
+        <button onclick="window.print()" class="btn-secondary" style="width:100%;">
+          Print Receipt
+        </button>
+        {% if sale.status == 'completed' or sale.status == 'partial_refund' %}
+          {% if user_role in 'owner admin manager' %}
+          <a href="{% url 'process_return' sale.id %}" class="btn-primary" style="width:100%; text-align:center; background:var(--error); border-color:var(--error);">
+            Issue Refund / Void
+          </a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+      <div class="card-title" style="font-size:14px;">Transaction Info</div>
+      <div class="flex flex-col gap-4 mt-4">
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Payment Method</div>
+          <div style="font-size:13px; color:var(--text); text-transform:capitalize;">{{ sale.payment_method }}</div>
+        </div>
+        {% if sale.customer_name %}
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">Customer</div>
+          <div style="font-size:13px; color:var(--text);">{{ sale.customer_name }}</div>
+          <div style="font-size:11px; color:var(--muted);">{{ sale.customer_phone }}</div>
+        </div>
+        {% endif %}
+        <hr style="border:0; border-top:1px solid var(--border)">
+        <div>
+          <div style="font-size:10px; color:var(--faint); text-transform:uppercase;">POS Session</div>
+          <div style="font-size:13px; color:var(--muted);">#{{ sale.session.id }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
