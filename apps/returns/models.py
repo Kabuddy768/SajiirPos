@@ -5,8 +5,10 @@ class Return(models.Model):
     REASON_CHOICES = [
         ('wrong_item', 'Wrong Item'),
         ('defective', 'Defective'),
+        ('damaged', 'Damaged/Defective'),
         ('customer_change', 'Customer Changed Mind'),
         ('other', 'Other'),
+
     ]
 
     return_number = models.CharField(max_length=100, unique=True)

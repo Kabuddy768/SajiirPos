@@ -5,8 +5,10 @@ from apps.sales.views_frontend import (
     sale_list, sale_detail
 )
 from apps.reports.views_frontend import (
-    dashboard, etims_dashboard, dashboard_staff, profit_loss_report
+    dashboard, etims_dashboard, dashboard_staff, profit_loss_report,
+    etims_retry_all, etims_pending_invoices
 )
+
 
 from apps.accounts.views import login_step1, login_step2
 from apps.invitations.views import invite_send, invite_accept
@@ -47,6 +49,9 @@ urlpatterns = [
     path("dashboard/", dashboard, name="dashboard"),
     path("dashboard/reports/pl/", profit_loss_report, name="profit_loss_report"),
     path("dashboard/etims/", etims_dashboard, name="etims_dashboard"),
+    path("dashboard/etims/retry-all/", etims_retry_all, name="etims_retry_all"),
+    path("dashboard/etims/pending/", etims_pending_invoices, name="etims_pending_invoices"),
+
 
     path("dashboard/staff/", dashboard_staff, name="dashboard_staff"),
 

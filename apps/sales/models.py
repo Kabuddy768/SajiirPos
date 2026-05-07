@@ -39,12 +39,16 @@ class Sale(models.Model):
     branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, related_name='sales')
     cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sales')
     customer = models.ForeignKey('customers.Customer', on_delete=models.SET_NULL, null=True, blank=True, related_name='sales')
+    customer_name = models.CharField(max_length=255, blank=True)
+    customer_phone = models.CharField(max_length=20, blank=True)
     
+    currency = models.CharField(max_length=10, default='KES')
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     taxable_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed', db_index=True)
     

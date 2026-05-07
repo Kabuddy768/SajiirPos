@@ -12,8 +12,7 @@ class StockService:
     @staticmethod
     def adjust(product, branch, quantity, reason, reference_id, user, batch=None, notes=''):
         """
-        Adjust stock by creating a StockMovement.
-        The actual BranchStock is updated via a post_save signal on StockMovement.
+        Adjust stock by creating a StockMovement and updating BranchStock/Batch.
         """
         with transaction.atomic():
             branch_stock, created = BranchStock.objects.select_for_update().get_or_create(
@@ -23,10 +22,20 @@ class StockService:
             )
             
             quantity_before = branch_stock.quantity
-            quantity_after = quantity_before + Decimal(str(quantity))
+            quantity_delta = Decimal(str(quantity))
+            quantity_after = quantity_before + quantity_delta
             
             if quantity_after < 0:
-                raise InsufficientStockError(f"Insufficient stock for {product.name}. Cannot subtract {-quantity}.")
+                raise InsufficientStockError(f"Insufficient stock for {product.name}. Current: {quantity_before}, requested: {quantity}.")
+
+            # Update BranchStock directly
+            branch_stock.quantity = quantity_after
+            branch_stock.save()
+
+            # Update Batch if provided
+            if batch:
+                batch.quantity_remaining += quantity_delta
+                batch.save()
 
             movement = StockMovement.objects.create(
                 product=product,
@@ -55,3 +64,4 @@ class StockService:
             )
 
             return movement
+

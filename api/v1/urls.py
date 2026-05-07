@@ -24,7 +24,11 @@ router.register(r'purchase-orders', PurchaseOrderViewSet, basename='purchase-ord
 router.register(r'grns', GoodsReceivedNoteViewSet, basename='grn')
 router.register(r'audit', AuditViewSet, basename='audit')
 
+from api.v1.sync import SyncSalesView
+
 urlpatterns = [
     path('', include(router.urls)),
     path('reports/', include('apps.reports.urls')),
+    path('sync/sales/', SyncSalesView.as_view(), name='sync-sales'),
 ]
+

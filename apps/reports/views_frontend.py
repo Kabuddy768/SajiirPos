@@ -1,8 +1,10 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Count, Q
+from django.http import JsonResponse
 from apps.tenants.permissions import get_user_role
+
 from apps.tenants.models import TenantUser
 
 
@@ -65,7 +67,38 @@ def etims_dashboard(request):
     role = get_user_role(request)
     if role not in [TenantUser.ROLE_OWNER, TenantUser.ROLE_ADMIN]:
         return redirect('dashboard')
-    return render(request, 'reports/etims_dashboard.html', {'user_role': role})
+    
+    from apps.sales.models import Sale
+    stats = Sale.objects.aggregate(
+        total=Count('id'),
+        pending=Count('id', filter=Q(etims_submission_status='pending')),
+        submitted=Count('id', filter=Q(etims_submission_status='submitted')),
+        failed=Count('id', filter=Q(etims_submission_status='failed'))
+    )
+    
+    return render(request, 'reports/etims_dashboard.html', {
+        'user_role': role,
+        'stats': stats
+    })
+
+@login_required
+def etims_retry_all(request):
+    from apps.sales.models import Sale
+    from workers.etims_tasks import sign_sale_etims
+    
+    failed_sales = Sale.objects.filter(etims_submission_status='failed')
+    count = failed_sales.count()
+    for sale in failed_sales:
+        sign_sale_etims.delay(sale.id, request.tenant.schema_name)
+        
+    return JsonResponse({'status': 'success', 'count': count})
+
+@login_required
+def etims_pending_invoices(request):
+    from apps.sales.models import Sale
+    pending_sales = Sale.objects.filter(etims_submission_status='pending').order_by('-created_at')
+    return render(request, 'reports/etims_pending.html', {'sales': pending_sales})
+
 
 
 @login_required

@@ -33,6 +33,23 @@ class SyncSalesView(APIView):
                 continue
                 
             try:
+                # Security Check 1: Session Ownership
+                session_id = sale_data.get('session_id')
+                from apps.sales.models import CashSession
+                session = CashSession.objects.filter(id=session_id, cashier=request.user, status='open').first()
+                if not session:
+                    raise ValueError("Session mismatch or session is closed.")
+
+                # Security Check 2: Backdating window (max 7 days)
+                client_created_at_str = sale_data.get('client_created_at')
+                from django.utils import timezone
+                import datetime
+                client_time = timezone.datetime.fromisoformat(client_created_at_str.replace('Z', '+00:00'))
+                if client_time < timezone.now() - datetime.timedelta(days=7):
+                    raise ValueError("Sale date is too far in the past. Maximum 7 days for offline sync.")
+                if client_time > timezone.now() + datetime.timedelta(minutes=30):
+                    raise ValueError("Sale date cannot be in the future.")
+
                 # Reconstruct cart for SaleService
                 cart_payload = sale_data.get('cart', [])
                 cart = []
@@ -61,15 +78,16 @@ class SyncSalesView(APIView):
 
                 sale = SaleService.complete(
                     cart=cart,
-                    session_id=sale_data.get('session_id'),
+                    session_id=session_id,
                     payments=sale_data.get('payments', []),
                     cashier=request.user,
                     customer=customer,
-                    client_created_at=sale_data.get('client_created_at'),
+                    client_created_at=client_created_at_str,
                     offline_uuid=offline_uuid,
                     schema_name=schema_name,
                     manager_override=sale_data.get('manager_override', False)
                 )
+
                 
                 results.append({
                     'offline_uuid': offline_uuid,

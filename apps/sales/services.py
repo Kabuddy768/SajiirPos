@@ -54,7 +54,8 @@ class SaleService:
             price = Decimal(str(item['unit_price']))
             disc = Decimal(str(item.get('discount_amount', '0.00')))
             
-            if price != product.selling_price and not manager_override:
+            # Use quantize to handle floating point drift (rounding to 2 decimal places)
+            if price.quantize(Decimal('0.01')) != product.selling_price.quantize(Decimal('0.01')) and not manager_override:
                 raise ValueError(f"Price mismatch for {product.name}. Expected {product.selling_price}, got {price}")
             
             line_subtotal = (qty * price) - disc
@@ -237,7 +238,7 @@ class SaleService:
                     product=item.product,
                     branch=sale.branch,
                     quantity=item.quantity,
-                    reason='adjustment',
+                    reason='return',
                     reference_id=f"VOID-{sale.sale_number}",
                     user=voided_by,
                     batch=item.batch,

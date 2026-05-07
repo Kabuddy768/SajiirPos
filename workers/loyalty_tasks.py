@@ -9,18 +9,23 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Initialize Africa's Talking
-africastalking.initialize(
-    settings.AFRICASTALKING_USERNAME,
-    settings.AFRICASTALKING_API_KEY
-)
-sms = africastalking.SMS
-
 @shared_task
 def detect_churned_customers():
     """
     Find customers who haven't made a purchase in 30 days and send a re-engagement SMS.
     """
+    # Initialize Africa's Talking inside task to avoid module-level errors
+    try:
+        africastalking.initialize(
+            settings.AFRICASTALKING_USERNAME,
+            settings.AFRICASTALKING_API_KEY
+        )
+        sms = africastalking.SMS
+    except Exception as e:
+        logger.error(f"Failed to initialize Africa's Talking: {str(e)}")
+        return 0
+
+
     churn_threshold_days = 30
     cutoff_date = timezone.now() - datetime.timedelta(days=churn_threshold_days)
     

@@ -51,12 +51,18 @@ def stock_movements(request):
     if role not in [TenantUser.ROLE_OWNER, TenantUser.ROLE_ADMIN, TenantUser.ROLE_MANAGER, TenantUser.ROLE_AUDITOR]:
         return redirect('pos_checkout')
 
-    movements = StockMovement.objects.select_related('product', 'branch', 'performed_by').order_by('-created_at')[:100]
+    movements_list = StockMovement.objects.select_related('product', 'branch', 'performed_by').order_by('-created_at')
+    
+    from django.core.paginator import Paginator
+    paginator = Paginator(movements_list, 50)  # 50 per page for logs
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
     
     return render(request, 'inventory/movements.html', {
-        'movements': movements,
+        'movements': page_obj,
         'user_role': role,
     })
+
 
 @login_required
 def transfer_list(request):

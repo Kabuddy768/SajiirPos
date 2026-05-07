@@ -33,11 +33,12 @@ class GRNService:
                 # 4. Update cost price
                 product = item.product
                 product.cost_price = item.cost_per_sale_unit
-                try:
-                    product.full_clean()
-                except Exception as e:
-                    pass # Or handle validation error
+                
+                # Ensure selling price stays above cost price or handle as policy dictates
+                # For now, we enforce full_clean() to catch model-level validation
+                product.full_clean()
                 product.save()
+
                 
                 # 5. PO link update
                 if grn.purchase_order:

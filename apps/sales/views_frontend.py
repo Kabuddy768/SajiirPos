@@ -5,6 +5,8 @@ from django.utils import timezone
 from .models import CashSession, Sale
 from apps.products.models import Product
 from apps.branches.models import Branch
+from apps.tenants.permissions import get_user_role
+
 
 @login_required
 def session_open(request):
@@ -140,13 +142,19 @@ def sale_list(request):
             Q(customer_phone__icontains=q)
         )
 
+    from django.core.paginator import Paginator
+    paginator = Paginator(sales, 20)  # 20 per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     branches = Branch.objects.filter(is_active=True)
     
     return render(request, 'sales/sale_list.html', {
-        'sales': sales[:100],  # Limit to 100 for performance, add pagination later if needed
+        'sales': page_obj,
         'branches': branches,
         'user_role': role,
     })
+
 
 @login_required
 def sale_detail(request, pk):
