@@ -32,10 +32,12 @@ class StockService:
             branch_stock.quantity = quantity_after
             branch_stock.save()
 
-            # Update Batch if provided
+            # Update Batch if provided — re-fetch with lock to avoid race conditions
             if batch:
-                batch.quantity_remaining += quantity_delta
-                batch.save()
+                from apps.products.models import ProductBatch
+                locked_batch = ProductBatch.objects.select_for_update().get(pk=batch.pk)
+                locked_batch.quantity_remaining += quantity_delta
+                locked_batch.save()
 
             movement = StockMovement.objects.create(
                 product=product,

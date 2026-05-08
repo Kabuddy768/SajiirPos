@@ -77,11 +77,12 @@ class RequiresBranch(permissions.BasePermission):
             return True
             
         from apps.branches.models import StaffProfile
-        try:
-            profile = StaffProfile.objects.get(user=request.user, is_active=True)
-            user_branch = profile.branch
-        except StaffProfile.DoesNotExist:
+        # Use filter().first() not .get() — a user can have multiple StaffProfile
+        # rows in a multi-branch environment; .get() raises MultipleObjectsReturned.
+        profile = StaffProfile.objects.filter(user=request.user, is_active=True).first()
+        if not profile:
             return False
+        user_branch = profile.branch
             
         if request.method in permissions.SAFE_METHODS:
             requested_branch_id = request.query_params.get('branch')
@@ -101,11 +102,10 @@ class RequiresBranch(permissions.BasePermission):
             return True
             
         from apps.branches.models import StaffProfile
-        try:
-            profile = StaffProfile.objects.get(user=request.user, is_active=True)
-            user_branch = profile.branch
-        except StaffProfile.DoesNotExist:
+        profile = StaffProfile.objects.filter(user=request.user, is_active=True).first()
+        if not profile:
             return False
+        user_branch = profile.branch
             
         if hasattr(obj, 'branch'):
             return str(user_branch.id) == str(obj.branch.id)

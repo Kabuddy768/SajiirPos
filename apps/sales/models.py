@@ -2,6 +2,19 @@ from django.db import models
 from django.conf import settings
 import uuid
 
+class DailySaleCounter(models.Model):
+    """Atomic per-branch, per-day sale number counter for KRA eTIMS compliance."""
+    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, related_name='daily_counters')
+    date_str = models.CharField(max_length=8)  # YYYYMMDD
+    counter = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('branch', 'date_str')
+
+    def __str__(self):
+        return f"{self.branch}-{self.date_str}: {self.counter}"
+
+
 class CashSession(models.Model):
     STATUS_CHOICES = [
         ('open', 'Open'),
@@ -84,3 +97,8 @@ class SaleItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity}x {self.product.name}"
+
+    @property
+    def total_price(self):
+        """Alias for line_total for template compatibility."""
+        return self.line_total

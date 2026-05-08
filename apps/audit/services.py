@@ -36,15 +36,16 @@ class AuditService:
         
         metrics = []
         for cashier in cashier_stats:
-            total_sales = cashier.total_sales_count
-            voided_sales = cashier.voided_sales_count
-            revenue = cashier.total_revenue or 0
-            discounts = cashier.total_discounts or 0
+            total_sales = cashier.total_sales_count or 0
+            voided_sales = cashier.voided_sales_count or 0
+            # Annotated Sum returns None when there are no matching rows — guard explicitly
+            revenue = float(cashier.total_revenue or 0)
+            discounts = float(cashier.total_discounts or 0)
             
             void_rate = (voided_sales / total_sales * 100) if total_sales > 0 else 0
             # Discount rate relative to potential revenue (revenue + discounts)
-            potential_revenue = float(revenue) + float(discounts)
-            discount_rate = (float(discounts) / potential_revenue * 100) if potential_revenue > 0 else 0
+            potential_revenue = revenue + discounts
+            discount_rate = (discounts / potential_revenue * 100) if potential_revenue > 0 else 0
             
             metrics.append({
                 'cashier_id': cashier.id,
@@ -53,8 +54,9 @@ class AuditService:
                 'voided_sales': voided_sales,
                 'void_rate': round(void_rate, 2),
                 'discount_rate': round(discount_rate, 2),
-                'total_revenue': float(revenue)
+                'total_revenue': revenue
             })
+
             
         # Sort by void rate descending to highlight potential issues
         metrics.sort(key=lambda x: x['void_rate'], reverse=True)

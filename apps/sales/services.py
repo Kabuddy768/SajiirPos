@@ -32,9 +32,30 @@ class SaleService:
 
     @staticmethod
     def _generate_sale_number(branch):
+        """
+        Generate a KRA-compliant sequential sale number atomically.
+        Format: {BRANCH_CODE}-{YYYYMMDD}-{SEQUENCE:05d}
+        Uses a database-level atomic counter to guarantee uniqueness.
+        """
+        from django.db.models import F
         date_str = timezone.localtime().strftime('%Y%m%d')
-        unique_suffix = uuid.uuid4().hex[:6].upper()
-        return f"{branch.etims_branch_code or 'BR'}-{date_str}-{unique_suffix}"
+        prefix = f"{branch.etims_branch_code or 'BR'}-{date_str}"
+
+        # Atomically increment the daily sale counter on the branch
+        # We use a separate lightweight model to avoid locking the Branch row
+        from apps.sales.models import DailySaleCounter
+        with transaction.atomic():
+            counter, _ = DailySaleCounter.objects.select_for_update().get_or_create(
+                branch=branch,
+                date_str=date_str,
+                defaults={'counter': 0}
+            )
+            counter.counter += 1
+            counter.save()
+            seq = counter.counter
+
+        return f"{prefix}-{seq:05d}"
+
 
     @staticmethod
     def _process_cart(cart, manager_override):
@@ -104,13 +125,26 @@ class SaleService:
                     raise ValueError("Points payment requires a customer profile.")
                 
                 # 1 Point = 1 KES conversion
-                points_needed = int(amt) 
+                points_needed = int(amt)
                 if customer.loyalty_points < points_needed:
                     raise ValueError(f"Insufficient loyalty points. Have {customer.loyalty_points}, need {points_needed}.")
+                
+                # Ensure points payment doesn't exceed the sale total
+                # (prevent a KES 5,000 sale being paid with 50 points by passing amount=5000)
+                total_paid_by_other_methods = sum(
+                    Decimal(str(other['amount'])) for other in payments if other['method'] != 'points'
+                )
+                remaining_balance = sale.total_amount - total_paid_by_other_methods
+                if amt > remaining_balance:
+                    raise ValueError(
+                        f"Points payment of KES {amt} exceeds remaining balance of KES {remaining_balance}. "
+                        f"Reduce the points amount or add another payment method to cover the full total."
+                    )
                 
                 customer.loyalty_points -= points_needed
                 customer.save()
                 status = 'confirmed'
+
 
             Payment.objects.create(
                 sale=sale,

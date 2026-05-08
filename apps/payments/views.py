@@ -32,6 +32,7 @@ class MpesaViewSet(viewsets.ViewSet):
             if not hmac.compare_digest(signature, expected_signature):
                 raise PermissionDenied("Invalid HMAC signature")
 
+
         from workers.mpesa_callbacks import process_mpesa_callback
         schema_name = getattr(request.tenant, 'schema_name', 'public') if hasattr(request, 'tenant') else 'public'
         process_mpesa_callback.delay(request.data, schema_name)

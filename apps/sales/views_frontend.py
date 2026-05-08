@@ -46,7 +46,12 @@ def checkout(request):
     if not session:
         return redirect('session_open')
     
-    return render(request, 'pos/checkout.html', {'session': session})
+    from apps.branches.models import StaffProfile
+    profile = StaffProfile.objects.filter(user=request.user, is_active=True).first()
+    branch_id = profile.branch_id if profile else ''
+    
+    return render(request, 'pos/checkout.html', {'session': session, 'branch_id': branch_id})
+
 
 @login_required
 def session_close(request):

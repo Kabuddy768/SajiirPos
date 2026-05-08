@@ -1,9 +1,18 @@
 from django.db import transaction
-from apps.inventory.services import StockService
+from django.core.exceptions import ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
 
 class GRNService:
     @staticmethod
     def receive(grn):
+        """
+        Receive a GRN, update stock and cost prices.
+        Returns a list of warnings (e.g. negative margin items) that shouldn't
+        block receipt but need follow-up by management.
+        """
+        warnings = []
         with transaction.atomic():
             for item in grn.items.all():
                 # 1. quantity_sale  (already computed by GRNItem.save())
@@ -30,19 +39,25 @@ class GRNService:
                         quantity_remaining=quantity_sale
                     )
                 
-                # 4. Update cost price
+                # 4. Update cost price — warn if margin goes negative, but do NOT
+                # block the GRN receipt. A 500-item receive should not fail because
+                # one product's supplier raised their price.
                 product = item.product
-                product.cost_price = item.cost_per_sale_unit
+                new_cost = item.cost_per_sale_unit
+                if new_cost > product.selling_price:
+                    msg = (
+                        f"Negative margin warning: {product.name} cost "
+                        f"({new_cost}) now exceeds selling price ({product.selling_price}). "
+                        f"Please update selling price."
+                    )
+                    warnings.append(msg)
+                    logger.warning(msg)
                 
-                # Ensure selling price stays above cost price or handle as policy dictates
-                # For now, we enforce full_clean() to catch model-level validation
-                product.full_clean()
-                product.save()
-
+                product.cost_price = new_cost
+                product.save(update_fields=['cost_price'])
                 
                 # 5. PO link update
                 if grn.purchase_order:
-                    # In a real scenario we'd do a loop or query to get the specific PO item
                     po_items = grn.purchase_order.items.filter(product=item.product)
                     for po_item in po_items:
                         po_item.quantity_received_sale_units += quantity_sale
@@ -63,3 +78,6 @@ class GRNService:
                 else:
                     po.status = 'partial'
                 po.save()
+
+        return warnings
+

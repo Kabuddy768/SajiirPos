@@ -287,10 +287,11 @@ async function completeSale() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    // "Authorization": Bearer added if needed
+                    "X-CSRFToken": CONFIG.csrfToken,
                 },
                 body: JSON.stringify(payload)
             });
+
             if (!res.ok) throw new Error("Sync failed");
             setStatus("SALE COMPLETED", "text-emerald-400");
             postCompleteReset();

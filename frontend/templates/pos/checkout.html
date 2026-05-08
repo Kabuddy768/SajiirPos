@@ -141,13 +141,15 @@
 <!-- Scripts Configuration -->
 <script>
     const CONFIG = {
-        branchId: "{{ request.user.tenantuser.branch_id|default:'' }}",
+        branchId: "{{ branch_id|default:'' }}",
         sessionId: "{{ session.id }}",
         apiUrl: "/api/v1/sales/",
         productsUrl: "/api/v1/products/",
         mpesaInitiateUrl: "/api/v1/payments/mpesa/initiate/",
-        wsUrl: "ws://" + window.location.host + "/ws/sales/"
+        wsUrl: "ws://" + window.location.host + "/ws/sales/",
+        csrfToken: "{{ csrf_token }}"
     };
+
 </script>
 <script src="{% static 'js/pos.js' %}"></script>
 {% endblock %}
