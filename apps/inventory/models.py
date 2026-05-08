@@ -30,14 +30,15 @@ class StockMovement(models.Model):
 
     product = models.ForeignKey('products.Product', on_delete=models.PROTECT, related_name='movements')
     branch = models.ForeignKey('branches.Branch', on_delete=models.PROTECT, related_name='movements')
-    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES, db_index=True)
     quantity = models.DecimalField(max_digits=12, decimal_places=3)
     quantity_before = models.DecimalField(max_digits=12, decimal_places=3)
     quantity_after = models.DecimalField(max_digits=12, decimal_places=3)
     
     unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     notes = models.TextField(blank=True)
-    reference_id = models.CharField(max_length=100, blank=True)
+    reference_id = models.CharField(max_length=100, blank=True, db_index=True)
+
     
     batch = models.ForeignKey('products.ProductBatch', on_delete=models.SET_NULL, null=True, blank=True, related_name='movements')
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='stock_movements')

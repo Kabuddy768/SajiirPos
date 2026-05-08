@@ -68,7 +68,8 @@ class ProductBatch(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='batches')
     branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, related_name='product_batches')
     batch_number = models.CharField(max_length=100)
-    expiry_date = models.DateField()
+    expiry_date = models.DateField(db_index=True)  # Indexed for FEFO picking and expiry alerts
+
     quantity_remaining = models.DecimalField(max_digits=12, decimal_places=3, default=0)
     is_written_off = models.BooleanField(default=False)
     received_at = models.DateTimeField(auto_now_add=True)

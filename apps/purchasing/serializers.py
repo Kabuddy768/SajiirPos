@@ -55,6 +55,9 @@ class GoodsReceivedNoteSerializer(serializers.ModelSerializer):
             
             # Call service to apply stock/batch
             from .services import GRNService
-            GRNService.receive(grn)
+            warnings = GRNService.receive(grn)
         
+        # Attach warnings to the instance so the view can include them in the response
+        grn._receive_warnings = warnings
         return grn
+

@@ -67,6 +67,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.branches.middleware.BranchMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -175,15 +176,25 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'workers.inventory_alerts.check_inventory_levels',
         'schedule': crontab(minute=0),
     },
-    'detect-churned-customers-daily': {
-        'task': 'workers.loyalty_tasks.detect_churned_customers',
-        'schedule': crontab(hour=8, minute=0),
+    # NOTE: detect_churned_customers and generate_demand_based_po now require
+    # a schema_name argument. They cannot be called directly from Beat without
+    # per-tenant dispatch. Use a management command that iterates Client.objects.all()
+    # and calls .delay(schema_name=client.schema_name) for each tenant.
+    # 'detect-churned-customers-daily': {
+    #     'task': 'workers.loyalty_tasks.detect_churned_customers',
+    #     'schedule': crontab(hour=8, minute=0),
+    # },
+    'cleanup-sale-counters-weekly': {
+        'task': 'workers.maintenance_tasks.cleanup_daily_sale_counters',
+        'schedule': crontab(hour=3, minute=0, day_of_week=0),  # Every Sunday 3am
     },
-    'auto-generate-pos-daily': {
-        'task': 'workers.purchasing_tasks.generate_demand_based_po',
-        'schedule': crontab(hour=6, minute=0),
-    }
+    'dispatch-daily-tenant-tasks': {
+        'task': 'workers.maintenance_tasks.dispatch_daily_tenant_tasks',
+        'schedule': crontab(hour=6, minute=30),  # 6:30 AM daily
+    },
 }
+
+
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Africa/Nairobi'

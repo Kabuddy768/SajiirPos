@@ -70,7 +70,12 @@ class Sale(models.Model):
     etims_signed_at = models.DateTimeField(null=True, blank=True)
     etims_qr_code = models.TextField(blank=True)
     etims_signature = models.CharField(max_length=255, blank=True)
-    etims_submission_status = models.CharField(max_length=20, choices=SUBMISSION_STATUS_CHOICES, default='pending')
+    etims_submission_status = models.CharField(
+        max_length=20,
+        choices=SUBMISSION_STATUS_CHOICES,
+        default='pending',
+        db_index=True  # Queried heavily by eTIMS retry/pending dashboard
+    )
     
     # Offline sync
     client_created_at = models.DateTimeField()

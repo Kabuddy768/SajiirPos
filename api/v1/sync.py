@@ -10,10 +10,33 @@ from apps.products.models import ProductBatch
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import UserRateThrottle
 from apps.tenants.permissions import RequiresBranch, IsCashier
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SyncSalesView(APIView):
     permission_classes = [IsAuthenticated, RequiresBranch, IsCashier]
     throttle_classes = [UserRateThrottle]
+
+    def _resolve_manager_override(self, request, sale_data):
+        """
+        Server-side role check for manager_override.
+        Cashiers cannot grant themselves manager privileges by setting
+        manager_override=true in the offline payload — role is verified here.
+        """
+        client_override = sale_data.get('manager_override', False)
+        if not client_override:
+            return False
+
+        from apps.tenants.models import TenantUser
+        try:
+            tu = TenantUser.objects.get(user=request.user)
+            role = tu.role
+        except TenantUser.DoesNotExist:
+            return False
+
+        # Only managers and above can approve price overrides
+        return role in ('manager', 'owner', 'admin')
 
     def post(self, request, *args, **kwargs):
         payload = request.data
@@ -50,6 +73,10 @@ class SyncSalesView(APIView):
                 if client_time > timezone.now() + datetime.timedelta(minutes=30):
                     raise ValueError("Sale date cannot be in the future.")
 
+                # Security Check 3: Server-side manager_override role enforcement.
+                # Never trust the client payload for privilege escalation.
+                manager_override = self._resolve_manager_override(request, sale_data)
+
                 # Reconstruct cart for SaleService
                 cart_payload = sale_data.get('cart', [])
                 cart = []
@@ -85,17 +112,21 @@ class SyncSalesView(APIView):
                     client_created_at=client_created_at_str,
                     offline_uuid=offline_uuid,
                     schema_name=schema_name,
-                    manager_override=sale_data.get('manager_override', False)
+                    manager_override=manager_override
                 )
 
-                
                 results.append({
                     'offline_uuid': offline_uuid,
                     'status': 'synced',
                     'sale_number': sale.sale_number
                 })
             except Exception as e:
-                # In real scenario: log it, maybe return failure
+                # Log the full traceback — silent losses are unacceptable
+                logger.exception(
+                    "Offline sync failed for uuid=%s user=%s",
+                    offline_uuid,
+                    request.user.email
+                )
                 results.append({
                     'offline_uuid': offline_uuid,
                     'status': 'failed',
@@ -103,3 +134,4 @@ class SyncSalesView(APIView):
                 })
         
         return Response({'results': results})
+

@@ -35,26 +35,23 @@ class SaleService:
         """
         Generate a KRA-compliant sequential sale number atomically.
         Format: {BRANCH_CODE}-{YYYYMMDD}-{SEQUENCE:05d}
-        Uses a database-level atomic counter to guarantee uniqueness.
+        MUST be called inside an existing transaction.atomic() block — the
+        counter increment rolls back with the sale if creation fails.
         """
-        from django.db.models import F
         date_str = timezone.localtime().strftime('%Y%m%d')
         prefix = f"{branch.etims_branch_code or 'BR'}-{date_str}"
 
-        # Atomically increment the daily sale counter on the branch
-        # We use a separate lightweight model to avoid locking the Branch row
         from apps.sales.models import DailySaleCounter
-        with transaction.atomic():
-            counter, _ = DailySaleCounter.objects.select_for_update().get_or_create(
-                branch=branch,
-                date_str=date_str,
-                defaults={'counter': 0}
-            )
-            counter.counter += 1
-            counter.save()
-            seq = counter.counter
-
-        return f"{prefix}-{seq:05d}"
+        # select_for_update() serialises concurrent calls; the outer transaction
+        # guarantees the increment rolls back if Sale.objects.create() later fails.
+        counter, _ = DailySaleCounter.objects.select_for_update().get_or_create(
+            branch=branch,
+            date_str=date_str,
+            defaults={'counter': 0}
+        )
+        counter.counter += 1
+        counter.save()
+        return f"{prefix}-{counter.counter:05d}"
 
 
     @staticmethod

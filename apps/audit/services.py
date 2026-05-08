@@ -11,7 +11,11 @@ class AuditService:
     def get_cashier_metrics(branch=None, days=30):
         """
         Calculate metrics for cashiers to detect anomalies like high void rates.
+        Aggregates directly from Sale model to avoid join distortion bugs.
         """
+        from django.db.models.functions import Coalesce
+        from decimal import Decimal
+        
         start_date = timezone.now() - datetime.timedelta(days=days)
         
         # Filter for sales in the given period
@@ -19,37 +23,38 @@ class AuditService:
         if branch:
             sales_filter &= Q(branch=branch)
             
-        # Group by cashier and calculate stats
-        cashier_stats = User.objects.filter(
-            sales__created_at__gte=start_date
+        # Group by cashier and calculate stats directly from Sale model.
+        # This is 100% safe from join-induced duplication distortion.
+        cashier_stats = Sale.objects.filter(sales_filter).values(
+            'cashier_id', 
+            'cashier__first_name', 
+            'cashier__last_name', 
+            'cashier__email'
+        ).annotate(
+            total_sales_count=Count('id'),
+            voided_sales_count=Count('id', filter=Q(status='voided')),
+            total_revenue=Coalesce(Sum('total_amount', filter=Q(status='completed')), Decimal('0')),
+            total_discounts=Coalesce(Sum('discount_amount', filter=Q(status='completed')), Decimal('0'))
         )
-        if branch:
-            cashier_stats = cashier_stats.filter(sales__branch=branch)
 
-        cashier_stats = cashier_stats.distinct().annotate(
-            total_sales_count=Count('sales', filter=sales_filter),
-            voided_sales_count=Count('sales', filter=sales_filter & Q(sales__status='voided')),
-            total_revenue=Sum('sales__total_amount', filter=sales_filter & Q(sales__status='completed')),
-            total_discounts=Sum('sales__discount_amount', filter=sales_filter & Q(sales__status='completed'))
-        )
-
-        
         metrics = []
-        for cashier in cashier_stats:
-            total_sales = cashier.total_sales_count or 0
-            voided_sales = cashier.voided_sales_count or 0
-            # Annotated Sum returns None when there are no matching rows — guard explicitly
-            revenue = float(cashier.total_revenue or 0)
-            discounts = float(cashier.total_discounts or 0)
+        for stat in cashier_stats:
+            total_sales = stat['total_sales_count']
+            voided_sales = stat['voided_sales_count']
+            revenue = float(stat['total_revenue'])
+            discounts = float(stat['total_discounts'])
             
             void_rate = (voided_sales / total_sales * 100) if total_sales > 0 else 0
-            # Discount rate relative to potential revenue (revenue + discounts)
             potential_revenue = revenue + discounts
             discount_rate = (discounts / potential_revenue * 100) if potential_revenue > 0 else 0
             
+            name = f"{stat['cashier__first_name']} {stat['cashier__last_name']}".strip()
+            if not name:
+                name = stat['cashier__email']
+
             metrics.append({
-                'cashier_id': cashier.id,
-                'cashier_name': cashier.get_full_name() or cashier.email,
+                'cashier_id': stat['cashier_id'],
+                'cashier_name': name,
                 'total_sales': total_sales,
                 'voided_sales': voided_sales,
                 'void_rate': round(void_rate, 2),
@@ -57,7 +62,7 @@ class AuditService:
                 'total_revenue': revenue
             })
 
-            
         # Sort by void rate descending to highlight potential issues
         metrics.sort(key=lambda x: x['void_rate'], reverse=True)
         return metrics
+

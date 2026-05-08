@@ -12,23 +12,31 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_current_stock(self, obj):
         from apps.inventory.models import BranchStock
-        from apps.branches.models import StaffProfile
+        import logging
+        logger = logging.getLogger(__name__)
         
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return 0
             
         try:
-            profile = StaffProfile.objects.filter(user=request.user, is_active=True).first()
-            if profile:
+            # Use pre-fetched branch from middleware to avoid N+1 profile lookups
+            branch = getattr(request, 'branch', None)
+            if branch:
                 bs = BranchStock.objects.filter(
                     product=obj, 
-                    branch=profile.branch
+                    branch=branch
                 ).first()
                 return float(bs.quantity) if bs else 0
-        except:
-            pass
+        except Exception:
+            logger.exception(
+                "Failed to fetch current_stock for product=%s user=%s",
+                obj.pk,
+                getattr(request, 'user', None)
+            )
         return 0
+
+
 
 class CartItemSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()

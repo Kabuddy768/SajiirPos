@@ -1,5 +1,7 @@
+from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from apps.inventory.services import StockService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,26 +20,30 @@ class GRNService:
                 # 1. quantity_sale  (already computed by GRNItem.save())
                 quantity_sale = item.quantity_sale_units
                 
-                # 2. StockService.adjust
+                # 1. Create or get Batch for auditability (even if not track_expiry, batch number is useful)
+                batch = None
+                if item.batch_number or item.expiry_date:
+                    from apps.products.models import ProductBatch
+                    batch = ProductBatch.objects.create(
+                        product=item.product,
+                        branch=grn.branch,
+                        batch_number=item.batch_number or 'GRN-' + grn.grn_number,
+                        expiry_date=item.expiry_date,
+                        quantity_remaining=Decimal('0.000')
+                    )
+
+                
+                # 2. StockService.adjust (passing the batch links the movement to the batch)
                 StockService.adjust(
                     product=item.product,
                     branch=grn.branch,
                     quantity=quantity_sale,
                     reason='purchase',
                     reference_id=grn.grn_number,
-                    user=grn.received_by
+                    user=grn.received_by,
+                    batch=batch
                 )
-                
-                # 3. Handle Expiry Date Batch
-                if item.product.track_expiry and item.expiry_date:
-                    from apps.products.models import ProductBatch
-                    ProductBatch.objects.create(
-                        product=item.product,
-                        branch=grn.branch,
-                        batch_number=item.batch_number,
-                        expiry_date=item.expiry_date,
-                        quantity_remaining=quantity_sale
-                    )
+
                 
                 # 4. Update cost price — warn if margin goes negative, but do NOT
                 # block the GRN receipt. A 500-item receive should not fail because

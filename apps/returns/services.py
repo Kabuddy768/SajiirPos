@@ -143,6 +143,8 @@ class ReturnService:
                 )
 
                 # Restore stock (positive quantity = add back)
+                # NOTE: StockService.adjust() handles batch.quantity_remaining internally
+                # via select_for_update(). Do NOT update batch here — that would double-count.
                 StockService.adjust(
                     product=p['sale_item'].product,
                     branch=branch,
@@ -154,9 +156,6 @@ class ReturnService:
                     notes=f"Return from sale {original_sale.sale_number}",
                 )
 
-                if p['sale_item'].batch:
-                    p['sale_item'].batch.quantity_remaining += p['quantity']
-                    p['sale_item'].batch.save()
 
             # ----------------------------------------------------------
             # 6. Update original sale status
