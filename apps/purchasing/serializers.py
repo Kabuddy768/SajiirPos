@@ -38,9 +38,13 @@ class GoodsReceivedNoteSerializer(serializers.ModelSerializer):
     items = GRNItemSerializer(many=True)
 
     class Meta:
-        model = GoodsReceivedNote
-        fields = ['id', 'grn_number', 'purchase_order', 'supplier', 'branch', 'received_by', 'supplier_invoice_number', 'notes', 'created_at', 'items']
-        read_only_fields = ['received_by', 'created_at']
+         model = GoodsReceivedNote
+         fields = [
+             'id', 'grn_number', 'purchase_order', 'supplier', 'branch', 
+             'received_by', 'supplier_invoice_number', 'payment_term', 
+             'due_date', 'notes', 'created_at', 'items'
+         ]
+         read_only_fields = ['received_by', 'created_at']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')

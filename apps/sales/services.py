@@ -31,14 +31,16 @@ class SaleService:
         return session
 
     @staticmethod
-    def _generate_sale_number(branch):
+    def _generate_sale_number(branch, date_str=None):
         """
         Generate a KRA-compliant sequential sale number atomically.
         Format: {BRANCH_CODE}-{YYYYMMDD}-{SEQUENCE:05d}
         MUST be called inside an existing transaction.atomic() block — the
         counter increment rolls back with the sale if creation fails.
         """
-        date_str = timezone.localtime().strftime('%Y%m%d')
+        if not date_str:
+            date_str = timezone.localtime().strftime('%Y%m%d')
+        
         prefix = f"{branch.etims_branch_code or 'BR'}-{date_str}"
 
         from apps.sales.models import DailySaleCounter
@@ -72,6 +74,9 @@ class SaleService:
             price = Decimal(str(item['unit_price']))
             disc = Decimal(str(item.get('discount_amount', '0.00')))
             
+            if disc > 0 and not product.allow_discount:
+                raise ValueError(f"Discounts are not allowed for {product.name}")
+
             # Use quantize to handle floating point drift (rounding to 2 decimal places)
             if price.quantize(Decimal('0.01')) != product.selling_price.quantize(Decimal('0.01')) and not manager_override:
                 raise ValueError(f"Price mismatch for {product.name}. Expected {product.selling_price}, got {price}")
@@ -142,14 +147,42 @@ class SaleService:
                 customer.save()
                 status = 'confirmed'
 
+            elif p['method'] == 'store_credit':
+                if not customer:
+                    raise ValueError("Store credit payment requires a customer profile.")
+                if not customer.allow_credit_sales:
+                    raise ValueError(f"Credit sales are not allowed for customer {customer.name}.")
+                
+                # Check credit limit
+                available_credit = customer.credit_limit - customer.current_credit_balance
+                if amt > available_credit:
+                    raise ValueError(
+                        f"Credit limit exceeded. Customer has KES {available_credit:.2f} available credit, "
+                        f"but this payment requires KES {amt:.2f}."
+                    )
+                
+                customer.current_credit_balance += amt
+                customer.save()
+                
+                # Record ledger entry
+                from apps.customers.models import CustomerCreditLedger
+                CustomerCreditLedger.objects.create(
+                    customer=customer,
+                    sale=sale,
+                    transaction_type=CustomerCreditLedger.TYPE_CHARGE,
+                    amount=amt,
+                    recorded_by=sale.cashier,
+                    notes=f"Store credit charge for sale {sale.sale_number}."
+                )
+                status = 'confirmed'
 
             Payment.objects.create(
                 sale=sale,
                 method=p['method'],
                 amount=amt,
                 status=status,
-                mpesa_phone=p.get('mpesa_phone', ''),
-                card_reference=p.get('card_reference', '')
+                mpesa_phone=p.get('mpesa_phone') or '',
+                card_reference=p.get('card_reference') or '',
             )
 
     @staticmethod
@@ -176,76 +209,104 @@ class SaleService:
         """
         Complete a sale and its payments, ensuring idempotency via offline_uuid.
         """
-        with transaction.atomic():
-            session = SaleService._validate_session(session_id, cashier)
-            
-            existing_sale = Sale.objects.filter(offline_uuid=offline_uuid).first()
-            if existing_sale:
-                return existing_sale
+        import logging
+        import datetime
+        logger = logging.getLogger(__name__)
 
-            branch = session.branch
-            sale_number = SaleService._generate_sale_number(branch)
-            
-            processed_items, subtotal, discount, taxable_amount, tax_amount, total = SaleService._process_cart(cart, manager_override)
+        try:
+            with transaction.atomic():
+                session = SaleService._validate_session(session_id, cashier)
+                
+                # Validation: Backdating window (max 7 days)
+                if isinstance(client_created_at, str):
+                    client_time = timezone.datetime.fromisoformat(client_created_at.replace('Z', '+00:00'))
+                else:
+                    client_time = client_created_at or timezone.now()
 
-            sale = Sale.objects.create(
-                sale_number=sale_number,
-                session=session,
-                branch=branch,
-                cashier=cashier,
-                customer=customer,
-                subtotal=subtotal,
-                discount_amount=discount,
-                taxable_amount=taxable_amount,
-                tax_amount=tax_amount,
-                total_amount=total,
-                status='completed',
-                client_created_at=client_created_at,
-                offline_uuid=offline_uuid,
-                is_offline_sale=False
-            )
+                if client_time < timezone.now() - datetime.timedelta(days=7):
+                    raise ValueError("Sale date is too far in the past. Maximum 7 days for offline sync.")
+                if client_time > timezone.now() + datetime.timedelta(minutes=30):
+                    raise ValueError("Sale date cannot be in the future.")
 
-            for p_item in processed_items:
-                SaleItem.objects.create(
-                    sale=sale,
-                    product=p_item['product'],
-                    quantity=p_item['quantity'],
-                    unit_price=p_item['unit_price'],
-                    cost_price=p_item['cost_price'],
-                    discount_amount=p_item['discount_amount'],
-                    tax_amount=p_item['tax_amount'],
-                    line_total=p_item['line_total'],
-                    tax_type=p_item['tax_type'],
-                    batch=p_item['batch']
-                )
+                # Check idempotency
+                existing_sale = Sale.objects.filter(offline_uuid=offline_uuid).first()
+                if existing_sale:
+                    return existing_sale
 
-                StockService.adjust(
-                    product=p_item['product'],
+                branch = session.branch
+                
+                # Generate sale number (using client_created_at date if provided for consistency)
+                date_prefix = client_time.strftime('%Y%m%d')
+                sale_number = SaleService._generate_sale_number(branch, date_str=date_prefix)
+                
+                processed_items, subtotal, discount, taxable_amount, tax_amount, total = SaleService._process_cart(cart, manager_override)
+
+                sale = Sale.objects.create(
+                    sale_number=sale_number,
+                    session=session,
                     branch=branch,
-                    quantity=-p_item['quantity'],
-                    reason='sale',
-                    reference_id=sale.sale_number,
-                    user=cashier,
-                    batch=p_item['batch']
+                    cashier=cashier,
+                    customer=customer,
+                    subtotal=subtotal,
+                    discount_amount=discount,
+                    taxable_amount=taxable_amount,
+                    tax_amount=tax_amount,
+                    total_amount=total,
+                    status='completed',
+                    client_created_at=client_time,
+                    offline_uuid=offline_uuid,
+                    is_offline_sale=False
                 )
 
-            SaleService._create_payments(sale, payments, customer)
+                for p_item in processed_items:
+                    SaleItem.objects.create(
+                        sale=sale,
+                        product=p_item['product'],
+                        quantity=p_item['quantity'],
+                        unit_price=p_item['unit_price'],
+                        cost_price=p_item['cost_price'],
+                        discount_amount=p_item['discount_amount'],
+                        tax_amount=p_item['tax_amount'],
+                        line_total=p_item['line_total'],
+                        tax_type=p_item['tax_type'],
+                        batch=p_item['batch']
+                    )
 
-            SaleService._handle_loyalty_points(customer, total)
+                    StockService.adjust(
+                        product=p_item['product'],
+                        branch=branch,
+                        quantity=-p_item['quantity'],
+                        reason='sale',
+                        reference_id=sale.sale_number,
+                        user=cashier,
+                        batch=p_item['batch']
+                    )
 
-            log_action(
-                user=cashier,
-                action='create',
-                model_name='Sale',
-                object_id=sale.id,
-                branch=branch,
-                after={'total': float(total), 'sale_number': sale_number}
-            )
+                SaleService._create_payments(sale, payments, customer)
+                SaleService._handle_loyalty_points(customer, total)
 
-        if sale.pk:
-            sign_sale_etims.delay(sale.pk, schema_name)
-            
-        return sale
+                log_action(
+                    user=cashier,
+                    action='create',
+                    model_name='Sale',
+                    object_id=sale.id,
+                    branch=branch,
+                    after={'total': float(total), 'sale_number': sale_number}
+                )
+
+            # Trigger background task outside transaction
+            if sale.pk:
+                try:
+                    from workers.etims_tasks import sign_sale_etims
+                    sign_sale_etims.apply_async(args=[sale.pk, schema_name], retry=False)
+                except Exception as task_err:
+                    logger.error(f"Failed to queue sign_sale_etims background task: {str(task_err)}")
+                
+            return sale
+
+        except Exception as e:
+            logger.exception(f"Sale completion failed for UUID {offline_uuid}: {str(e)}")
+            raise e
 
     @staticmethod
     def void(sale, voided_by, reason=''):

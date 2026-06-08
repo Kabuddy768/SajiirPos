@@ -5,7 +5,7 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = [
-            'name', 'description', 'category', 'sku', 'barcode',
+            'name', 'description', 'category', 'primary_supplier', 'sku', 'barcode',
             'cost_price', 'selling_price', 'tax_type', 'is_tax_inclusive',
             'sale_unit', 'purchase_unit', 'units_per_purchase',
             'minimum_stock_level', 'reorder_quantity', 'track_expiry',

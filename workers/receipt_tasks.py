@@ -6,7 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def send_whatsapp_receipt_task(sale_id, phone_number, schema_name):
     """
     Send a simplified receipt via SMS/WhatsApp (Africa's Talking often uses SMS as fallback).

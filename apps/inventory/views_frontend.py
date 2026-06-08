@@ -19,7 +19,7 @@ def stock_list(request):
     q = request.GET.get('q', '')
     only_low_stock = request.GET.get('low_stock') == '1'
 
-    stocks = BranchStock.objects.select_related('product', 'branch', 'product__category')
+    stocks = BranchStock.objects.select_related('product', 'branch', 'product__category', 'product__primary_supplier')
 
     if branch_id:
         stocks = stocks.filter(branch_id=branch_id)

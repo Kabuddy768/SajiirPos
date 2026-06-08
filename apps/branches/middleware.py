@@ -31,7 +31,7 @@ class BranchMiddleware(MiddlewareMixin):
                 profile = StaffProfile.objects.filter(
                     user=request.user, 
                     is_active=True
-                ).select_related('branch').first()
+                ).select_related('branch').order_by('id').first()
                 
                 if profile:
                     request.branch = profile.branch

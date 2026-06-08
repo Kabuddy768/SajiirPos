@@ -1,0 +1,81 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Goods Received Notes (GRN) — Sajiir POS{% endblock %}
+{% block page_title %}Goods Received Notes (GRN){% endblock %}
+{% block breadcrumb %}Dashboard / GRNs{% endblock %}
+
+{% block topbar_actions %}
+{% if user_role in 'owner admin manager' %}
+<a href="{% url 'grn_create' %}" class="btn-primary">+ Receive New Goods (GRN)</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+<ul class="messages" style="margin-bottom:20px;">
+  {% for message in messages %}
+  <li class="{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div>
+      <div class="card-title">Stock Intake Registry</div>
+      <div class="card-subtitle">Track historical goods received notes, invoices, and purchase details</div>
+    </div>
+  </div>
+
+  {% if grns %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>GRN Number</th>
+          <th>Supplier</th>
+          <th>Received At</th>
+          <th>Received By</th>
+          <th>Payment Term</th>
+          <th>Due Date</th>
+          <th style="text-align:right;">Total Cost Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for grn in grns %}
+        <tr>
+          <td style="font-weight:600; color:var(--text);">{{ grn.grn_number }}</td>
+          <td>{{ grn.supplier.name }}</td>
+          <td>{{ grn.created_at|date:"d M Y, h:i A" }}</td>
+          <td>{{ grn.received_by.email }}</td>
+          <td>
+            <span class="badge" style="
+              {% if grn.payment_term == 'cash' %}
+                background:rgba(16,185,129,0.1); color:var(--success); border:1px solid rgba(16,185,129,0.2);
+              {% else %}
+                background:rgba(245,158,11,0.1); color:var(--warning); border:1px solid rgba(245,158,11,0.2);
+              {% endif %}
+              padding:4px 8px; border-radius:12px; font-weight:600; font-size:11px;
+            ">
+              {{ grn.get_payment_term_display }}
+            </span>
+          </td>
+          <td>{{ grn.due_date|default:"—" }}</td>
+          <td style="text-align:right; font-weight:700; color:var(--text);">
+            {{ request.tenant.currency }} {{ grn.total_value|floatformat:2 }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:60px 20px; color:var(--faint);">
+    <div style="font-size:48px; margin-bottom:16px;">📦</div>
+    <div style="font-size:16px; font-weight:600; color:var(--muted);">No Goods Received Notes Found</div>
+    <div style="font-size:13px; margin-top:8px;">Click "+ Receive New Goods (GRN)" above to register a stock arrival.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

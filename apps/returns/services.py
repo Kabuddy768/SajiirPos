@@ -59,7 +59,11 @@ class ReturnService:
 
             for item_data in items_data:
                 try:
-                    sale_item = SaleItem.objects.get(
+                    # select_for_update() locks this row for the duration of the transaction.
+                    # This prevents two concurrent refund requests from both seeing
+                    # "returnable qty = 5" and both approving a return of 5, resulting
+                    # in 10 units being returned against a sale of only 5.
+                    sale_item = SaleItem.objects.select_for_update().get(
                         id=item_data['sale_item_id'],
                         sale=original_sale
                     )
@@ -88,8 +92,10 @@ class ReturnService:
                         f"already returned {already_returned})."
                     )
 
-                # Line refund = (unit_price * qty) proportional to original
-                line_refund = sale_item.unit_price * qty_to_return
+                # Line refund = (effective price * qty)
+                # effective price = line_total / quantity (includes discounts and taxes paid)
+                effective_unit_price = sale_item.line_total / sale_item.quantity
+                line_refund = (effective_unit_price * qty_to_return).quantize(Decimal('0.01'))
                 refund_total += line_refund
 
                 processed_items.append({

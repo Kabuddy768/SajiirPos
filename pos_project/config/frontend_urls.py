@@ -6,14 +6,18 @@ from apps.sales.views_frontend import (
 )
 from apps.reports.views_frontend import (
     dashboard, etims_dashboard, dashboard_staff, profit_loss_report,
-    etims_retry_all, etims_pending_invoices
+    etims_retry_all, etims_pending_invoices,
+    credit_aging_report, record_credit_payment,
+    payables_report, record_supplier_payment,
+    staff_performance_report,
 )
 
 
 from apps.accounts.views import login_step1, login_step2
 from apps.invitations.views import invite_send, invite_accept
 from apps.products.views_frontend import (
-    product_list, product_create, product_update, product_delete
+    product_list, product_create, product_update, product_delete, product_import,
+    product_barcode
 )
 from apps.branches.views_frontend import (
     branch_list, branch_create, branch_update
@@ -21,7 +25,11 @@ from apps.branches.views_frontend import (
 from apps.inventory.views_frontend import (
     stock_list, stock_movements, transfer_list, transfer_detail
 )
-from apps.tenants.views import subscription_page
+from apps.purchasing.views_frontend import (
+    supplier_list, supplier_create, supplier_update, supplier_delete,
+    grn_list, grn_create
+)
+from apps.tenants.views import subscription_page, workspace_settings
 from apps.returns.views_frontend import process_return
 
 from apps.expenses.views_frontend import (
@@ -58,8 +66,10 @@ urlpatterns = [
     # ── Products CRUD ──────────────────────────────────────────────
     path("dashboard/products/", product_list, name="product_list"),
     path("dashboard/products/add/", product_create, name="product_create"),
+    path("dashboard/products/import/", product_import, name="product_import"),
     path("dashboard/products/<int:pk>/edit/", product_update, name="product_update"),
     path("dashboard/products/<int:pk>/delete/", product_delete, name="product_delete"),
+    path("dashboard/products/<int:pk>/barcode/", product_barcode, name="product_barcode"),
 
     # ── Branches CRUD ──────────────────────────────────────────────
     path("dashboard/branches/", branch_list, name="branch_list"),
@@ -90,8 +100,24 @@ urlpatterns = [
 
     # ── Subscription ──────────────────────────────────────────────
     path("dashboard/subscription/", subscription_page, name="subscription_page"),
+    path("dashboard/settings/", workspace_settings, name="workspace_settings"),
 
     # ── Staff invitations ─────────────────────────────────────────
     path("dashboard/invite/send/", invite_send, name="invite_send"),
     path("invite/accept/", invite_accept, name="invite_accept"),
+
+    # ── Financial Reports ─────────────────────────────────────────
+    path("dashboard/reports/credit-aging/",       credit_aging_report,      name="credit_aging_report"),
+    path("dashboard/reports/payables/",            payables_report,          name="payables_report"),
+    path("dashboard/reports/staff-performance/",   staff_performance_report, name="staff_performance_report"),
+    path("dashboard/customers/<int:customer_id>/record-payment/", record_credit_payment,  name="record_credit_payment"),
+    path("dashboard/suppliers/<int:supplier_id>/record-payment/", record_supplier_payment, name="record_supplier_payment"),
+
+    # ── Suppliers & GRNs ──────────────────────────────────────────
+    path("dashboard/suppliers/", supplier_list, name="supplier_list"),
+    path("dashboard/suppliers/add/", supplier_create, name="supplier_create"),
+    path("dashboard/suppliers/<int:pk>/edit/", supplier_update, name="supplier_update"),
+    path("dashboard/suppliers/<int:pk>/delete/", supplier_delete, name="supplier_delete"),
+    path("dashboard/grns/", grn_list, name="grn_list"),
+    path("dashboard/grns/add/", grn_create, name="grn_create"),
 ]

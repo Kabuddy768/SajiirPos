@@ -27,6 +27,16 @@ class CashSession(models.Model):
     closed_at = models.DateTimeField(null=True, blank=True)
     opening_float = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     closing_float = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    
+    # Reconciliation fields
+    expected_cash = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    expected_mpesa = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    expected_card = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    reported_cash = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    reported_mpesa = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    reported_card = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open')
     notes = models.TextField(blank=True)
 
@@ -86,6 +96,18 @@ class Sale(models.Model):
 
     def __str__(self):
         return self.sale_number
+
+    class Meta:
+        indexes = [
+            # Dashboard: "Today's sales" — filters by date + status constantly
+            models.Index(fields=['created_at', 'status'], name='sale_date_status_idx'),
+            # Branch reports: filter by branch + date range
+            models.Index(fields=['branch', 'created_at'], name='sale_branch_date_idx'),
+            # eTIMS retry worker: finds pending/failed submissions
+            models.Index(fields=['etims_submission_status', 'created_at'], name='sale_etims_status_idx'),
+            # Cashier audit: per-cashier query
+            models.Index(fields=['cashier', 'created_at'], name='sale_cashier_date_idx'),
+        ]
 
 class SaleItem(models.Model):
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='items')

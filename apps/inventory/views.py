@@ -24,6 +24,14 @@ class StockTransferViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsCashier]
 
     def create(self, request, *args, **kwargs):
+        # Tier Check
+        from apps.tenants.tier_limits import has_stock_transfers
+        if not has_stock_transfers(request.tenant):
+            return Response(
+                {'error': 'Stock transfers are not available in your current plan. Please upgrade.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = TransferCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

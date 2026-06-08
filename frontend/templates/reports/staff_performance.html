@@ -1,0 +1,137 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Staff Performance — Sajiir POS{% endblock %}
+{% block page_title %}Staff Performance{% endblock %}
+{% block breadcrumb %}Dashboard / Reports / Staff Performance{% endblock %}
+
+{% block content %}
+
+{# ── Filter Form ─────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:24px;">
+  <form method="get" style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end;">
+    <div class="form-group" style="margin:0;">
+      <label>Branch</label>
+      <select name="branch">
+        <option value="">— All Branches —</option>
+        {% for b in branches %}
+        <option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label>Start Date</label>
+      <input type="date" name="start" value="{{ start_date|date:'Y-m-d' }}">
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label>End Date</label>
+      <input type="date" name="end" value="{{ end_date|date:'Y-m-d' }}">
+    </div>
+    <button type="submit" class="btn-primary" style="height:42px;">Generate</button>
+  </form>
+</div>
+
+{% if perf_rows %}
+
+{# ── Top performer banner ────────────────────────────────────────── #}
+{% with top=perf_rows.0 %}
+<div style="background:linear-gradient(135deg,#1e3a8a,#2563eb); border-radius:16px;
+            padding:24px 32px; margin-bottom:24px; display:flex; align-items:center; gap:24px;">
+  <div style="width:56px; height:56px; background:rgba(255,255,255,0.15); border-radius:50%;
+              display:flex; align-items:center; justify-content:center;
+              font-size:22px; font-weight:800; color:#fff;">🏆</div>
+  <div>
+    <div style="font-size:11px; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.08em;">Top Performer — {{ start_date }} to {{ end_date }}</div>
+    <div style="font-size:20px; font-weight:800; color:#fff; margin:4px 0;">{{ top.name }}</div>
+    <div style="font-size:13px; color:rgba(255,255,255,0.75);">
+      {{ request.tenant.currency }} {{ top.revenue|floatformat:0 }} revenue &nbsp;·&nbsp; {{ top.sales_count }} sales
+    </div>
+  </div>
+</div>
+{% endwith %}
+
+{# ── Performance table ───────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-title" style="margin-bottom:20px;">Cashier Productivity Index</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cashier</th>
+          <th style="text-align:right;">Revenue</th>
+          <th style="text-align:right;">Sales</th>
+          <th style="text-align:right;">Avg / Sale</th>
+          <th style="text-align:right;">Discounts Given</th>
+          <th style="text-align:right;">Voids</th>
+          <th style="text-align:center;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in perf_rows %}
+        <tr>
+          <td style="color:var(--faint); font-weight:600;">{{ forloop.counter }}</td>
+          <td>
+            <div style="font-weight:600; color:var(--text);">{{ row.name }}</div>
+            <div style="font-size:11px; color:var(--faint);">{{ row.email }}</div>
+          </td>
+          <td style="text-align:right; font-weight:700; color:var(--text);">
+            {{ request.tenant.currency }} {{ row.revenue|floatformat:2 }}
+          </td>
+          <td style="text-align:right;">{{ row.sales_count }}</td>
+          <td style="text-align:right; color:var(--muted);">
+            {% if row.sales_count > 0 %}
+              {{ request.tenant.currency }} {% widthratio row.revenue row.sales_count 1 %}
+            {% else %}—{% endif %}
+          </td>
+          <td style="text-align:right; color:var(--warning);">
+            {{ row.discounts|floatformat:2 }}
+          </td>
+          <td style="text-align:right;">
+            {% if row.voids > 0 %}
+              <span style="color:var(--error); font-weight:700;">{{ row.voids }}</span>
+            {% else %}
+              <span style="color:var(--success);">0</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;">
+            {% if row.voids > 3 %}
+              <span class="badge badge-red">Review</span>
+            {% elif forloop.counter == 1 %}
+              <span class="badge badge-green">Top</span>
+            {% else %}
+              <span class="badge badge-indigo">Active</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Void notice #}
+  {% for row in perf_rows %}
+  {% if row.voids > 3 %}
+  <div style="margin-top:20px; padding:14px 18px; background:rgba(239,68,68,0.08);
+              border:1px solid rgba(239,68,68,0.2); border-radius:10px; font-size:13px;">
+    ⚠️ <strong>{{ row.name }}</strong> has {{ row.voids }} voided transactions this period.
+    High void counts may indicate till discrepancies — please review session logs.
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+{% elif branch %}
+<div class="card" style="text-align:center; padding:60px 20px; color:var(--faint);">
+  <div style="font-size:48px; margin-bottom:16px;">📊</div>
+  <div style="font-size:16px; font-weight:600; color:var(--muted);">No Sales Found</div>
+  <div style="font-size:13px; margin-top:8px;">No completed sales in {{ branch.name }} for this period.</div>
+</div>
+
+{% else %}
+<div class="card" style="text-align:center; padding:60px 20px; color:var(--faint);">
+  <div style="font-size:48px; margin-bottom:16px;">🏪</div>
+  <div style="font-size:16px; font-weight:600; color:var(--muted);">Select a Branch to Begin</div>
+  <div style="font-size:13px; margin-top:8px;">Choose a branch and date range above, then click Generate.</div>
+</div>
+{% endif %}
+
+{% endblock %}

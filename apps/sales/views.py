@@ -18,7 +18,12 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = SaleCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            import logging
+            logger = logging.getLogger('apps')
+            logger.error(f"Sale validation failed: {serializer.errors} | Payload: {request.data}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
         
         data = serializer.validated_data
         
@@ -40,8 +45,16 @@ class SaleViewSet(viewsets.ModelViewSet):
             except Product.DoesNotExist:
                 return Response({'error': f"Product {item['product_id']} not found"}, status=status.HTTP_400_BAD_REQUEST)
         
-        has_mpesa = any(p['method'] == 'mpesa' for p in data['payments'])
-        if has_mpesa:
+        # 'mpesa' = STK push initiated via server, waiting for Safaricom callback
+        # 'mpesa-confirmed' = STK push already sent + user confirmed locally → record immediately
+        has_pending_mpesa = any(p['method'] == 'mpesa' for p in data['payments'])
+        
+        # Normalize 'mpesa-confirmed' → 'mpesa' for the Payment record
+        for p in data['payments']:
+            if p['method'] == 'mpesa-confirmed':
+                p['method'] = 'mpesa'
+        
+        if has_pending_mpesa:
             cache_key = f"pending_sale_{data['offline_uuid']}"
             cache.set(cache_key, {
                 'cart': data['cart'],
@@ -82,8 +95,14 @@ class SaleViewSet(viewsets.ModelViewSet):
                 manager_override=data.get('manager_override', False)
             )
             if data.get('send_digital_receipt') and data.get('receipt_phone'):
-                from workers.receipt_tasks import send_whatsapp_receipt_task
-                send_whatsapp_receipt_task.delay(sale.id, data['receipt_phone'])
+                try:
+                    from workers.receipt_tasks import send_whatsapp_receipt_task
+                    from django.db import connection
+                    send_whatsapp_receipt_task.apply_async(args=[sale.id, data['receipt_phone'], connection.schema_name], retry=False)
+                except Exception as task_err:
+                    import logging
+                    logger = logging.getLogger('apps')
+                    logger.error(f"Failed to queue send_whatsapp_receipt_task background task: {str(task_err)}")
                 
             return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
         except Exception as e:
@@ -165,3 +184,18 @@ class CashSessionViewSet(viewsets.ModelViewSet):
     queryset = CashSession.objects.all()
     serializer_class = CashSessionSerializer
     permission_classes = [IsAuthenticated, IsCashier]
+
+    def perform_create(self, serializer):
+        # Prevent multiple open sessions for the same cashier
+        if CashSession.objects.filter(cashier=self.request.user, status='open').exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("You already have an open session. Please close it before opening a new one.")
+        
+        # Auto-assign branch from profile
+        from apps.branches.models import StaffProfile
+        try:
+            profile = StaffProfile.objects.get(user=self.request.user, is_active=True)
+            serializer.save(cashier=self.request.user, branch=profile.branch, status='open')
+        except StaffProfile.DoesNotExist:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("User not assigned to an active branch profile.")

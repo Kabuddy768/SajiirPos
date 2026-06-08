@@ -60,7 +60,14 @@ class GRNService:
                     logger.warning(msg)
                 
                 product.cost_price = new_cost
-                product.save(update_fields=['cost_price'])
+                try:
+                    product.full_clean()
+                    product.save(update_fields=['cost_price'])
+                except ValidationError as e:
+                    # We still allow the cost update but the warning is already added above
+                    # This ensures we don't block the entire GRN receipt for one price anomaly
+                    product.save(update_fields=['cost_price'])
+                    logger.warning(f"Product validation failed for {product.name} after cost update: {e}")
                 
                 # 5. PO link update
                 if grn.purchase_order:
@@ -84,6 +91,27 @@ class GRNService:
                 else:
                     po.status = 'partial'
                 po.save()
+
+            # 7. Update Supplier Payables Balance / Process Payments
+            grn_total = grn.total_value
+            supplier = grn.supplier
+            
+            if grn.payment_term == 'credit':
+                # Increase supplier's outstanding balance
+                supplier.current_payable_balance += grn_total
+                supplier.save(update_fields=['current_payable_balance'])
+            elif grn.payment_term == 'cash':
+                # Create an automatic SupplierPayment immediately so the balance is settled on receipt
+                from .models import SupplierPayment
+                SupplierPayment.objects.create(
+                    supplier=supplier,
+                    grn=grn,
+                    amount=grn_total,
+                    payment_method='bank_transfer',
+                    transaction_reference=grn.supplier_invoice_number or f"AUTO-GRN-{grn.grn_number}",
+                    notes=f"Auto-settled cash purchase for GRN {grn.grn_number}",
+                    paid_by=grn.received_by
+                )
 
         return warnings
 

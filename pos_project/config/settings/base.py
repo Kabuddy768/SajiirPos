@@ -13,7 +13,8 @@ SHARED_APPS = [
     'django_tenants',
     'apps.tenants',
     'apps.accounts',
-    
+    'apps.onboarding',  # Public signup — lives in the shared schema
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -25,6 +26,13 @@ SHARED_APPS = [
     'rest_framework_simplejwt',
     'channels',
     'corsheaders',
+]
+
+# Use Argon2 for stronger password hashing (memory-hard, resistant to brute-force)
+# Install: pip install django[argon2]
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',  # fallback for existing passwords
 ]
 
 TENANT_APPS = [
@@ -73,7 +81,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'pos_project.config.urls'
-PUBLIC_SCHEMA_URLCONF = 'pos_project.config.urls'
+PUBLIC_SCHEMA_URLCONF = 'pos_project.config.public_urls'
 
 TEMPLATES = [
     {
@@ -140,15 +148,30 @@ SIMPLE_JWT = {
 
 REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
 
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+# Gracefully fall back to local memory cache if Redis is not running
+import redis
+try:
+    _redis_client = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=1)
+    _redis_client.ping()
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            }
         }
     }
-}
+    CELERY_TASK_ALWAYS_EAGER = False
+except Exception:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "sajiir-pos-fallback",
+        }
+    }
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 
 CHANNEL_LAYERS = {
     'default': {
@@ -165,6 +188,16 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Africa/Nairobi'
+
+# Fail fast if Redis/Celery is offline (do not block the web process retrying to connect)
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'max_retries': 1,
+    'interval_start': 0.1,
+    'interval_step': 0.1,
+    'interval_max': 0.2,
+}
+
 
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
@@ -192,6 +225,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'workers.maintenance_tasks.dispatch_daily_tenant_tasks',
         'schedule': crontab(hour=6, minute=30),  # 6:30 AM daily
     },
+    'dispatch-hourly-etims-retry': {
+        'task': 'workers.maintenance_tasks.dispatch_hourly_etims_retry',
+        'schedule': crontab(minute=0),  # Every hour
+    },
 }
 
 
@@ -204,6 +241,59 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'frontend', 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'sajiir.log'),
+            'maxBytes': 1024 * 1024 * 5,  # 5MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'errors.log'),
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'level': 'ERROR',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'apps': {  # catches all your app logs
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'workers': {  # catches all celery task logs
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -242,4 +332,13 @@ if not DEBUG:
 
 # M-Pesa webhook security
 MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
+
+# M-Pesa Daraja API Settings
+MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY', default='')
+MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
+MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
+MPESA_SHORTCODE = config('MPESA_SHORTCODE', default='')
+MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='')
+MPESA_ENV = config('MPESA_ENV', default='sandbox')
+
 

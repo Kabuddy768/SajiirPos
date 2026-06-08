@@ -216,6 +216,7 @@
       <span class="sidebar-logo-name">Sajiir POS</span>
     </div>
 
+    {# ── Main section ── #}
     <div class="sidebar-section">
       <div class="sidebar-section-label">Main</div>
 
@@ -238,14 +239,14 @@
         Staff
       </a>
 
-      <a href="{% url 'branch_list' %}" id="nav-branches" class="sidebar-link {% if 'branch' in request.resolver_match.url_name %}active{% endif %}">
+      <a href="{% url 'branch_list' %}" id="nav-branches"
+         class="sidebar-link {% if 'branch' in request.resolver_match.url_name %}active{% endif %}">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
         </svg>
         Branches
       </a>
-
       {% endif %}
 
       <a href="{% url 'product_list' %}" id="nav-products"
@@ -257,6 +258,15 @@
         Products
       </a>
 
+      <a href="{% url 'supplier_list' %}" id="nav-suppliers"
+         class="sidebar-link {% if 'supplier' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1M9 16h.01"/>
+        </svg>
+        Suppliers
+      </a>
+
       <a href="{% url 'stock_list' %}" id="nav-inventory"
          class="sidebar-link {% if 'stock' in request.resolver_match.url_name %}active{% endif %}">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -266,6 +276,14 @@
         Inventory
       </a>
 
+      <a href="{% url 'grn_list' %}" id="nav-grns"
+         class="sidebar-link {% if 'grn' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+        </svg>
+        Stock Intakes (GRN)
+      </a>
 
       <a href="{% url 'sale_list' %}" id="nav-sales"
          class="sidebar-link {% if 'sale' in request.resolver_match.url_name %}active{% endif %}">
@@ -286,7 +304,6 @@
       </a>
 
       <a href="{% url 'expense_list' %}" id="nav-expenses"
-
          class="sidebar-link {% if 'expense' in request.resolver_match.url_name %}active{% endif %}">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -295,8 +312,8 @@
         Expenses
       </a>
 
-      <a href="{% url 'dashboard' %}" id="nav-reports" class="sidebar-link {% if 'dashboard' == request.resolver_match.url_name %}active{% endif %}">
-
+      <a href="{% url 'dashboard' %}" id="nav-reports"
+         class="sidebar-link">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -304,9 +321,9 @@
         Reports
       </a>
 
-
       {% if user_role == 'owner' %}
-      <a href="{% url 'subscription_page' %}" id="nav-subscription" class="sidebar-link {% if 'subscription' in request.resolver_match.url_name %}active{% endif %}">
+      <a href="{% url 'subscription_page' %}" id="nav-subscription"
+         class="sidebar-link {% if 'subscription' in request.resolver_match.url_name %}active{% endif %}">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
@@ -315,8 +332,65 @@
       </a>
       {% endif %}
 
+      {% if user_role in 'owner admin' %}
+      <a href="{% url 'workspace_settings' %}" id="nav-settings"
+         class="sidebar-link {% if 'settings' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Workspace Settings
+      </a>
+      {% endif %}
     </div>
 
+    {# ── Finance section ── #}
+    {% if user_role in 'owner admin manager auditor' %}
+    <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;">
+      <div class="sidebar-section-label">Finance</div>
+
+      <a href="{% url 'profit_loss_report' %}" id="nav-pl"
+         class="sidebar-link {% if 'profit_loss' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        P&amp;L Report
+      </a>
+
+      <a href="{% url 'credit_aging_report' %}" id="nav-aging"
+         class="sidebar-link {% if 'credit_aging' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Credit Aging
+      </a>
+
+      {% if user_role in 'owner admin' %}
+      <a href="{% url 'payables_report' %}" id="nav-payables"
+         class="sidebar-link {% if 'payables' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+        </svg>
+        Supplier Payables
+      </a>
+
+      <a href="{% url 'staff_performance_report' %}" id="nav-perf"
+         class="sidebar-link {% if 'staff_performance' in request.resolver_match.url_name %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+        </svg>
+        Staff Performance
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Operations section ── #}
     <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;">
       <div class="sidebar-section-label">Operations</div>
       <a href="{% url 'pos_checkout' %}" id="nav-till" class="sidebar-link">
@@ -328,6 +402,7 @@
       </a>
     </div>
 
+    {# ── Footer ── #}
     <div class="sidebar-footer">
       <div class="user-chip">
         <div class="avatar">{{ request.user.email|first|upper }}</div>
@@ -342,8 +417,8 @@
       </form>
     </div>
   </aside>
-
   {# ── Main ──────────────────────────────────────────────── #}
+
   <div class="dash-main">
     <div class="dash-topbar">
       <span class="topbar-title">{% block page_title %}Dashboard{% endblock %}</span>

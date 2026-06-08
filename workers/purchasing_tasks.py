@@ -12,45 +12,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 @shared_task
-def generate_demand_based_po():
+def generate_demand_based_po(schema_name):
     """
     Analyzes last 14 days of sales to forecast demand and draft POs for low stock SKUs.
     This runs daily.
     """
-    days_to_analyze = 14
-    cutoff = timezone.now() - timedelta(days=days_to_analyze)
-    
-    # Calculate daily average sales per product per branch
-    sales_data = SaleItem.objects.filter(
-        sale__created_at__gte=cutoff,
-        sale__status='completed'
-    ).values('product', 'sale__branch').annotate(
-        total_sold=Sum('quantity')
-    )
-    
-    forecasts = {}
-    for entry in sales_data:
-        daily_avg = entry['total_sold'] / days_to_analyze
-        forecasts[(entry['product'], entry['sale__branch'])] = daily_avg
-
-    branches = Branch.objects.all()
-    po_count = 0
-    
-    for branch in branches:
-        # Dictionary to keep track of draft POs per supplier for this branch
-        branch_pos = {}
-        
-        # Check all active products
-        products = Product.objects.filter(is_active=True).select_related('primary_supplier')
-        
-        for prod in products:
-            avg_daily_sale = forecasts.get((prod.id, branch.id), 0)
-            
-            # Lead time + safety stock logic
-            lead_time_days = 3
-            safety_days = 4
-            reorder_threshold = avg_daily_sale * (lead_time_days + safety_days)
-            
+    from django_tenants.utils import schema_context
+    with schema_context(schema_name):
+        days_to_analyze = 14
             # Use minimum_stock_level as a floor if demand is very low
             effective_threshold = max(reorder_threshold, prod.minimum_stock_level)
             

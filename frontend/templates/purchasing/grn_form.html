@@ -1,0 +1,247 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Record Stock Intake (GRN) — Sajiir POS{% endblock %}
+{% block page_title %}Record Stock Intake (GRN){% endblock %}
+{% block breadcrumb %}Dashboard / GRNs / Create{% endblock %}
+
+{% block content %}
+<form method="post" id="grn-form">
+  {% csrf_token %}
+  
+  <div class="grid" style="display:grid; grid-template-columns: 2fr 1fr; gap:24px;">
+    
+    <!-- LEFT: Product Items Grid -->
+    <div>
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title">Add Products to Intake</div>
+        <div class="card-subtitle" style="margin-bottom:16px;">Search and add products to this GRN.</div>
+
+        <!-- Product Selector Dropdown -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; align-items:flex-end;">
+          <div class="form-group" style="flex-grow:1; margin:0;">
+            <label for="product-selector">Choose Product</label>
+            <select id="product-selector" class="form-control" style="width:100%;">
+              <option value="">-- Select a Product to Add --</option>
+              {% for p in products %}
+              <option value="{{ p.id }}" data-cost="{{ p.cost_price }}" data-sku="{{ p.sku }}" data-unit="{{ p.purchase_unit.short_name|default:p.sale_unit.short_name }}">
+                {{ p.name }} (SKU: {{ p.sku }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="button" id="btn-add-item" class="btn-primary" style="height:44px; padding:0 24px;">+ Add Item</button>
+        </div>
+
+        <!-- GRN Items Table -->
+        <div class="table-wrap">
+          <table id="grn-items-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th style="width:100px;">Qty (Purchase Units)</th>
+                <th style="width:100px;">Unit Cost</th>
+                <th>Batch Number</th>
+                <th>Expiry Date</th>
+                <th style="text-align:right;">Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="grn-items-body">
+              <!-- Dynamically populated via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="no-items-alert" style="text-align:center; padding:40px 20px; color:var(--muted);">
+          No products added yet. Choose a product above and click "+ Add Item".
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Supplier, Invoicing & Terms -->
+    <div>
+      <div class="card" style="position:sticky; top:24px;">
+        <div class="card-title">Receiving & Billing</div>
+        
+        <div class="form-group">
+          <label for="supplier">Supplier *</label>
+          <select id="supplier" name="supplier" required class="form-control">
+            <option value="">-- Choose Supplier --</option>
+            {% for s in suppliers %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="branch">Intake Branch *</label>
+          <select id="branch" name="branch" required class="form-control">
+            {% for b in branches %}
+            <option value="{{ b.id }}" {% if b.id == request.session.branch_id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="supplier_invoice_number">Supplier Invoice / Delivery Note #</label>
+          <input type="text" id="supplier_invoice_number" name="supplier_invoice_number" placeholder="e.g. INV-10029">
+        </div>
+
+        <div class="form-group">
+          <label for="payment_term">Payment Term</label>
+          <select id="payment_term" name="payment_term" class="form-control">
+            <option value="credit" selected>Credit (Add to Account Payable)</option>
+            <option value="cash">Cash (Paid immediately)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="due-date-group">
+          <label for="due_date">Payment Due Date *</label>
+          <input type="date" id="due_date" name="due_date" required>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Notes / Remarks</label>
+          <textarea id="notes" name="notes" rows="2" placeholder="Any special notes..."></textarea>
+        </div>
+
+        <!-- Value Summary Box -->
+        <div style="background:var(--border); padding:16px; border-radius:8px; margin-top:20px; border-left:4px solid var(--accent);">
+          <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; color:var(--muted);">
+            <span>Subtotal:</span>
+            <span id="summary-subtotal">0.00</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:700; font-size:16px; color:var(--text);">
+            <span>Grand Total:</span>
+            <span>{{ request.tenant.currency }} <span id="summary-grand-total">0.00</span></span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" style="width:100%; margin-top:20px; padding:12px; font-weight:600;">
+          Post Goods Received Note
+        </button>
+        <a href="{% url 'grn_list' %}" class="btn-secondary" style="width:100%; margin-top:8px; text-align:center; padding:12px; display:block; box-sizing:border-box;">
+          Cancel & Return
+        </a>
+      </div>
+    </div>
+
+  </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelector = document.getElementById('product-selector');
+    const btnAddItem = document.getElementById('btn-add-item');
+    const itemsBody = document.getElementById('grn-items-body');
+    const noItemsAlert = document.getElementById('no-items-alert');
+    const paymentTerm = document.getElementById('payment_term');
+    const dueDateGroup = document.getElementById('due-date-group');
+    const dueDate = document.getElementById('due_date');
+
+    // Automatically set default credit due date to 30 days from now
+    const today = new Date();
+    today.setDate(today.getDate() + 30);
+    dueDate.value = today.toISOString().split('T')[0];
+
+    // Toggle due date display based on payment term
+    paymentTerm.addEventListener('change', function() {
+        if (paymentTerm.value === 'cash') {
+            dueDateGroup.style.display = 'none';
+            dueDate.removeAttribute('required');
+        } else {
+            dueDateGroup.style.display = 'block';
+            dueDate.setAttribute('required', 'required');
+        }
+    });
+
+    // Add item click
+    btnAddItem.addEventListener('click', function() {
+        const selectedId = productSelector.value;
+        if (!selectedId) return;
+
+        const option = productSelector.options[productSelector.selectedIndex];
+        const name = option.text.split('(SKU:')[0].trim();
+        const cost = option.getAttribute('data-cost');
+        const sku = option.getAttribute('data-sku');
+        const unit = option.getAttribute('data-unit');
+
+        // Check if item already in table
+        if (document.getElementById(`row-${selectedId}`)) {
+            alert('This product is already in the list. Please adjust its quantity.');
+            return;
+        }
+
+        // Add row
+        const row = document.createElement('tr');
+        row.id = `row-${selectedId}`;
+        row.innerHTML = `
+            <td style="font-weight:600;">
+                ${name}
+                <input type="hidden" name="product_id[]" value="${selectedId}">
+            </td>
+            <td><code style="font-size:12px;">${sku}</code></td>
+            <td>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <input type="number" name="quantity[]" value="1.000" min="0.001" step="0.001" class="qty-input" style="width:70px; padding:4px;" required>
+                    <span style="font-size:12px; color:var(--muted);">${unit}</span>
+                </div>
+            </td>
+            <td>
+                <input type="number" name="unit_cost[]" value="${cost}" min="0.00" step="0.01" class="cost-input" style="width:90px; padding:4px;" required>
+            </td>
+            <td>
+                <input type="text" name="batch_number[]" placeholder="Auto" style="width:100px; padding:4px;">
+            </td>
+            <td>
+                <input type="date" name="expiry_date[]" style="width:125px; padding:4px;">
+            </td>
+            <td style="text-align:right; font-weight:700; color:var(--text);" class="subtotal-cell">
+                ${cost}
+            </td>
+            <td style="text-align:center;">
+                <button type="button" class="btn-logout remove-btn" style="padding:4px 8px; font-size:11px; margin:0; height:auto;">Delete</button>
+            </td>
+        `;
+
+        itemsBody.appendChild(row);
+        noItemsAlert.style.display = 'none';
+        productSelector.value = '';
+
+        // Add event listeners for total updates
+        const qtyInput = row.querySelector('.qty-input');
+        const costInput = row.querySelector('.cost-input');
+        const removeBtn = row.querySelector('.remove-btn');
+
+        qtyInput.addEventListener('input', calculateTotals);
+        costInput.addEventListener('input', calculateTotals);
+        removeBtn.addEventListener('click', function() {
+            row.remove();
+            calculateTotals();
+        });
+
+        calculateTotals();
+    });
+
+    function calculateTotals() {
+        let total = 0.0;
+        const rows = itemsBody.querySelectorAll('tr');
+
+        if (rows.length === 0) {
+            noItemsAlert.style.display = 'block';
+        }
+
+        rows.forEach(function(row) {
+            const qty = parseFloat(row.querySelector('.qty-input').value) || 0.0;
+            const cost = parseFloat(row.querySelector('.cost-input').value) || 0.0;
+            const subtotal = qty * cost;
+            row.querySelector('.subtotal-cell').textContent = subtotal.toFixed(2);
+            total += subtotal;
+        });
+
+        document.getElementById('summary-subtotal').textContent = total.toFixed(2);
+        document.getElementById('summary-grand-total').textContent = total.toFixed(2);
+    }
+});
+</script>
+{% endblock %}

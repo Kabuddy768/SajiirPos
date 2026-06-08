@@ -1,0 +1,73 @@
+{% extends "onboarding/base_onboarding.html" %}
+{% block page_title %}Create your Sajiir POS account{% endblock %}
+{% block content %}
+
+<!-- Step Indicator -->
+<div class="progress-steps">
+  <div class="step active">
+    <div class="step-dot">1</div>
+    <div class="step-line"></div>
+    Create Account
+  </div>
+  <div class="step">
+    <div class="step-dot">2</div>
+    <div class="step-line"></div>
+    Setup Workspace
+  </div>
+  <div class="step">
+    <div class="step-dot">3</div>
+    Your POS is Ready
+  </div>
+</div>
+
+<div class="auth-card">
+  <h1>Create your account</h1>
+  <p class="subtitle">Start your 14-day free trial. No credit card required.</p>
+
+  {% if form.non_field_errors %}
+    <div class="form-error">{{ form.non_field_errors|join:" " }}</div>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="id_first_name">First Name</label>
+        {{ form.first_name }}
+        {% if form.first_name.errors %}<div class="field-error">{{ form.first_name.errors|join:" " }}</div>{% endif %}
+      </div>
+      <div class="form-group">
+        <label for="id_last_name">Last Name</label>
+        {{ form.last_name }}
+        {% if form.last_name.errors %}<div class="field-error">{{ form.last_name.errors|join:" " }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="id_email">Email Address</label>
+      {{ form.email }}
+      {% if form.email.errors %}<div class="field-error">{{ form.email.errors|join:" " }}</div>{% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="id_password">Password</label>
+      {{ form.password }}
+      {% if form.password.errors %}<div class="field-error">{{ form.password.errors|join:" " }}</div>{% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="id_password_confirm">Confirm Password</label>
+      {{ form.password_confirm }}
+      {% if form.password_confirm.errors %}<div class="field-error">{{ form.password_confirm.errors|join:" " }}</div>{% endif %}
+    </div>
+
+    <button type="submit" class="btn-submit">Create Account &rarr;</button>
+  </form>
+</div>
+
+<div class="auth-footer">
+  Already have an account? <a href="/login/">Sign in</a>
+</div>
+
+{% endblock %}

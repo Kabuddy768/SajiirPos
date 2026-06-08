@@ -1,0 +1,97 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Import Products — Sajiir POS{% endblock %}
+{% block page_title %}Import Products{% endblock %}
+{% block breadcrumb %}Dashboard / Products / Import{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+  
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-title">Upload CSV File</div>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px; line-height: 1.5;">
+      Onboard your catalog instantly. Upload a CSV file containing your product information. You can import up to 10,000 products in one go.
+    </p>
+
+    <form method="post" enctype="multipart/form-data" style="margin-bottom: 16px;">
+      {% csrf_token %}
+      <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 40px; text-align: center; background: var(--surface-2); margin-bottom: 20px; transition: border-color 0.2s;">
+        <svg style="width: 48px; height: 48px; color: var(--primary); margin: 0 auto 16px; display: block;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+        </svg>
+        <span style="display: block; font-weight: 500; color: var(--text); margin-bottom: 8px;">Drag & drop your CSV file here, or click to browse</span>
+        <span style="display: block; font-size: 12px; color: var(--muted); margin-bottom: 16px;">Supports .csv files only</span>
+        <input type="file" name="file" accept=".csv" required style="display: inline-block; font-size: 13px;">
+      </div>
+
+      <div class="flex gap-3 justify-end">
+        <a href="{% url 'product_list' %}" class="btn-secondary" style="padding: 10px 20px;">Cancel</a>
+        <button type="submit" class="btn-primary" style="padding: 10px 24px;">Start Import</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-title">CSV Template & Guidelines</div>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+      Ensure your CSV includes the following column headers. Capitalization does not matter.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--border); text-align: left;">
+          <th style="padding: 8px; color: var(--text);">Header</th>
+          <th style="padding: 8px; color: var(--text);">Required</th>
+          <th style="padding: 8px; color: var(--text);">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 8px; font-family: monospace; color: var(--primary);">name</td>
+          <td style="padding: 8px; color: var(--danger);">Yes</td>
+          <td style="padding: 8px; color: var(--muted);">The full name of the product.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 8px; font-family: monospace; color: var(--primary);">sku</td>
+          <td style="padding: 8px; color: var(--muted);">No</td>
+          <td style="padding: 8px; color: var(--muted);">Unique SKU. If left blank, a random one will be generated.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 8px; font-family: monospace; color: var(--primary);">barcode</td>
+          <td style="padding: 8px; color: var(--muted);">No</td>
+          <td style="padding: 8px; color: var(--muted);">Unique barcode code. Must not match any existing product.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 8px; font-family: monospace; color: var(--primary);">category</td>
+          <td style="padding: 8px; color: var(--muted);">No</td>
+          <td style="padding: 8px; color: var(--muted);">Category name. Created automatically if it doesn't exist. Defaults to "General".</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 8px; font-family: monospace; color: var(--primary);">unit</td>
+          <td style="padding: 8px; color: var(--muted);">No</td>
+          <td style="padding: 8px; color: var(--muted);">Unit short name (e.g. pcs, kg). Defaults to "pcs".</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 8px; font-family: monospace; color: var(--primary);">cost_price</td>
+          <td style="padding: 8px; color: var(--muted);">No</td>
+          <td style="padding: 8px; color: var(--muted);">Supplier cost price (e.g. 150.00). Defaults to 0.00.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 8px; font-family: monospace; color: var(--primary);">selling_price</td>
+          <td style="padding: 8px; color: var(--muted);">No</td>
+          <td style="padding: 8px; color: var(--muted);">Retail selling price (e.g. 200.00). Defaults to 0.00.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="background: var(--surface-2); border-radius: 8px; padding: 16px; border: 1px solid var(--border);">
+      <span style="font-weight: 600; font-size: 13px; color: var(--text); display: block; margin-bottom: 8px;">💡 Pro-Tip</span>
+      <span style="font-size: 12px; color: var(--muted); line-height: 1.4; display: block;">
+        Download a template directly to avoid syntax issues. 
+        <a href="data:text/csv;charset=utf-8,name,sku,barcode,category,unit,cost_price,selling_price,description%0ACola%20Soda%20300ml,COLA300,60012345678,Beverages,pcs,45.00,60.00,Refreshing%20carbonated%20soda%0ACorn%20Flakes%20500g,CORN500,60087654321,Breakfast,pcs,210.00,280.00,Healthy%20morning%20breakfast%20cereal" download="sajiir_product_template.csv" style="color: var(--primary); text-decoration: underline; font-weight: 500;">Click here to download template CSV file</a>
+      </span>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

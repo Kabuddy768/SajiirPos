@@ -25,3 +25,21 @@ def sign_sale_etims(self, sale_id, schema_name):
             pass
         except Exception as exc: # ETIMSError
             self.retry(exc=exc)
+
+@shared_task
+def retry_pending_etims_submissions(schema_name):
+    """
+    Find sales stuck in 'pending' status for > 5 minutes and retry signing.
+    Useful for closing gaps caused by transient Celery or API downtime.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    with schema_context(schema_name):
+        cutoff = timezone.now() - timedelta(minutes=5)
+        pending_sales = Sale.objects.filter(
+            etims_submission_status='pending',
+            created_at__lt=cutoff,
+            status='completed' # Don't try to sign voided or draft sales
+        )
+        for sale in pending_sales:
+            sign_sale_etims.delay(sale.id, schema_name)

@@ -62,22 +62,68 @@ def session_close(request):
     if not session:
         return redirect('session_open')
     
+    from apps.payments.models import Payment
+    from django.db.models import Sum
+    from decimal import Decimal
+    
+    # Calculate Expected Values
+    total_cash_payments = Payment.objects.filter(
+        sale__session=session, method='cash', status='confirmed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    expected_cash = session.opening_float + total_cash_payments
+    
+    expected_mpesa = Payment.objects.filter(
+        sale__session=session, method='mpesa', status='confirmed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    expected_card = Payment.objects.filter(
+        sale__session=session, method='card', status='confirmed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
     if request.method == 'POST':
-        closing_float = request.POST.get('closing_float', 0)
-        session.closing_float = closing_float
+        try:
+            reported_cash = Decimal(request.POST.get('reported_cash') or '0.00')
+        except Exception:
+            reported_cash = Decimal('0.00')
+
+        try:
+            reported_mpesa = Decimal(request.POST.get('reported_mpesa') or '0.00')
+        except Exception:
+            reported_mpesa = Decimal('0.00')
+
+        try:
+            reported_card = Decimal(request.POST.get('reported_card') or '0.00')
+        except Exception:
+            reported_card = Decimal('0.00')
+            
+        session.expected_cash = expected_cash
+        session.expected_mpesa = expected_mpesa
+        session.expected_card = expected_card
+        
+        session.reported_cash = reported_cash
+        session.reported_mpesa = reported_mpesa
+        session.reported_card = reported_card
+        
+        # closing_float represents total physical currency reported at close
+        session.closing_float = reported_cash + reported_mpesa + reported_card
         session.status = 'closed'
         session.closed_at = timezone.now()
+        session.notes = request.POST.get('notes', '')
         session.save()
+        
         return redirect('z_report', session_id=session.id)
     
-    # Simple Z-report preview
     sales = session.sales.all()
     total_sales = sum(s.total_amount for s in sales)
     
     return render(request, 'pos/session_close.html', {
         'session': session,
         'total_sales': total_sales,
-        'sales_count': sales.count()
+        'sales_count': sales.count(),
+        'expected_cash': expected_cash,
+        'expected_mpesa': expected_mpesa,
+        'expected_card': expected_card,
     })
 
 @login_required
@@ -88,10 +134,18 @@ def z_report(request, session_id):
     session = get_object_or_404(CashSession, id=session_id)
     sales = session.sales.all()
     total_sales = sum(s.total_amount for s in sales)
+    
+    cash_variance = session.reported_cash - session.expected_cash
+    mpesa_variance = session.reported_mpesa - session.expected_mpesa
+    card_variance = session.reported_card - session.expected_card
+    
     return render(request, 'pos/z_report.html', {
         'session': session,
         'sales': sales,
-        'total_sales': total_sales
+        'total_sales': total_sales,
+        'cash_variance': cash_variance,
+        'mpesa_variance': mpesa_variance,
+        'card_variance': card_variance,
     })
 
 @login_required

@@ -37,3 +37,29 @@ def subscription_page(request):
         'usage': usage,
         'user_role': role,
     })
+
+from django.contrib import messages
+from .forms import TenantSettingsForm
+
+@login_required
+def workspace_settings(request):
+    role = get_user_role(request)
+    if role not in [TenantUser.ROLE_OWNER, TenantUser.ROLE_ADMIN]:
+        messages.error(request, "Only workspace owners and admins can configure settings.")
+        return redirect('dashboard')
+
+    tenant = request.tenant
+    if request.method == 'POST':
+        form = TenantSettingsForm(request.POST, instance=tenant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Workspace settings updated successfully.")
+            return redirect('workspace_settings')
+    else:
+        form = TenantSettingsForm(instance=tenant)
+
+    return render(request, 'tenants/settings.html', {
+        'form': form,
+        'user_role': role,
+        'tenant': tenant,
+    })

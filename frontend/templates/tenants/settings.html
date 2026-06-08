@@ -1,0 +1,132 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Workspace Settings — Sajiir POS{% endblock %}
+{% block page_title %}Workspace Settings{% endblock %}
+{% block breadcrumb %}Dashboard / Settings{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+  
+  <form method="post">
+    {% csrf_token %}
+    
+    {# ── Business Profile Card ── #}
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="card-title">Business Profile</div>
+      <div class="card-subtitle" style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+        Basic details for your company workspace.
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="{{ form.name.id_for_label }}">Business Name *</label>
+          {{ form.name }}
+          {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.contact_email.id_for_label }}">Contact Email</label>
+          {{ form.contact_email }}
+          {% if form.contact_email.errors %}<div class="field-error">{{ form.contact_email.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.contact_phone.id_for_label }}">Contact Phone</label>
+          {{ form.contact_phone }}
+          {% if form.contact_phone.errors %}<div class="field-error">{{ form.contact_phone.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.country.id_for_label }}">Country</label>
+          {{ form.country }}
+          {% if form.country.errors %}<div class="field-error">{{ form.country.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.currency.id_for_label }}">Default Currency</label>
+          {{ form.currency }}
+          {% if form.currency.errors %}<div class="field-error">{{ form.currency.errors.0 }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Tax & eTIMS Configuration Card ── #}
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="card-title">KRA eTIMS & Tax Settings</div>
+      <div class="card-subtitle" style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+        Configure your compliance details for invoice signing.
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="form-group">
+          <label for="{{ form.kra_pin.id_for_label }}">KRA PIN</label>
+          {{ form.kra_pin }}
+          {% if form.kra_pin.errors %}<div class="field-error">{{ form.kra_pin.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.etims_serial.id_for_label }}">eTIMS Device Serial</label>
+          {{ form.etims_serial }}
+          {% if form.etims_serial.errors %}<div class="field-error">{{ form.etims_serial.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group" style="grid-column: span 2; display: flex; align-items: center; margin-top: 10px;">
+          {{ form.vat_registered }}
+          <label for="{{ form.vat_registered.id_for_label }}" style="margin: 0; cursor: pointer; font-weight: normal;">
+            Our business is VAT registered (Standard 16% VAT will apply)
+          </label>
+        </div>
+
+        <div class="form-group" style="grid-column: span 2;" id="vat_no_group">
+          <label for="{{ form.vat_registration_no.id_for_label }}">VAT Registration Number</label>
+          {{ form.vat_registration_no }}
+          {% if form.vat_registration_no.errors %}<div class="field-error">{{ form.vat_registration_no.errors.0 }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ── M-Pesa & Card Payment Info Card ── #}
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="card-title">M-Pesa & Branch Payment Setup</div>
+      <div class="card-subtitle" style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+        Because different physical locations might use distinct Till or Paybill numbers, M-Pesa credentials are configured individually on each branch.
+      </div>
+      
+      <div style="background: var(--surface-2); border-radius: 8px; padding: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-weight: 600; font-size: 13px; color: var(--text); display: block; margin-bottom: 4px;">Configure payment methods</span>
+          <span style="font-size: 12px; color: var(--muted);">Click here to open the branch dashboard and configure Till/Paybill credentials.</span>
+        </div>
+        <a href="{% url 'branch_list' %}" class="btn-secondary" style="padding: 8px 16px; white-space: nowrap;">Configure Branches →</a>
+      </div>
+    </div>
+
+    <div class="flex gap-3 justify-end" style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px;">
+      <a href="{% url 'dashboard' %}" class="btn-secondary" style="padding: 10px 20px;">Cancel</a>
+      <button type="submit" class="btn-primary" style="padding: 10px 32px;">Save Changes</button>
+    </div>
+  </form>
+
+</div>
+
+<script>
+  // Dynamic hide/show for VAT number field
+  document.addEventListener('DOMContentLoaded', function() {
+    const vatCheckbox = document.getElementById('{{ form.vat_registered.id_for_label }}');
+    const vatGroup = document.getElementById('vat_no_group');
+
+    function toggleVatGroup() {
+      if (vatCheckbox.checked) {
+        vatGroup.style.display = 'block';
+      } else {
+        vatGroup.style.display = 'none';
+      }
+    }
+
+    if (vatCheckbox && vatGroup) {
+      vatCheckbox.addEventListener('change', toggleVatGroup);
+      toggleVatGroup(); // initial check
+    }
+  });
+</script>
+{% endblock %}

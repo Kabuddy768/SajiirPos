@@ -1,0 +1,402 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Print Barcodes — {{ product.name }}{% endblock %}
+{% block page_title %}Barcode Label Generator{% endblock %}
+{% block breadcrumb %}Dashboard / Products / {{ product.name }} / Barcodes{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-6 no-print">
+    <!-- Config Card (Left Column) -->
+    <div class="card lg:w-1/3 p-5 flex flex-col gap-5 bg-[#1E293B] border border-slate-800 text-slate-100">
+        <h3 class="text-white font-bold text-base border-b border-slate-800 pb-2">Label Settings</h3>
+        
+        <div class="flex flex-col gap-1">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Product Info</span>
+            <span class="text-sm font-semibold text-white">{{ product.name }}</span>
+            <span class="text-xs text-slate-400">SKU: <span class="font-mono">{{ product.sku }}</span></span>
+            {% if product.barcode %}
+            <span class="text-xs text-slate-400">Barcode: <span class="font-mono">{{ product.barcode }}</span></span>
+            {% else %}
+            <span class="text-xs text-amber-400 font-medium">⚠️ No barcode set. SKU will be used.</span>
+            {% endif %}
+        </div>
+
+        <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+                <label for="label_format" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Label Size / Layout</label>
+                <select id="label_format" class="w-full bg-[#0F172A] border border-slate-700 text-slate-100 text-xs rounded p-2 focus:outline-none focus:border-indigo-500">
+                    <option value="roll_50_30">Continuous Roll (50mm x 30mm)</option>
+                    <option value="roll_38_25">Continuous Roll (38mm x 25mm)</option>
+                    <option value="sheet_a4_30">A4 Label Sheet (3 columns x 10 rows - 30 labels)</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label for="label_quantity" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quantity to Print</label>
+                <input type="number" id="label_quantity" min="1" max="1000" value="30" 
+                       class="w-full bg-[#0F172A] border border-slate-700 text-slate-100 font-mono text-xs rounded p-2 focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div class="flex flex-col gap-2 pt-2">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Label Content Options</span>
+                
+                <label class="flex items-center gap-2 text-xs cursor-pointer select-none text-slate-300">
+                    <input type="checkbox" id="opt_store_name" checked class="rounded bg-[#0F172A] border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                    Include Store Name ({{ tenant.name }})
+                </label>
+
+                <label class="flex items-center gap-2 text-xs cursor-pointer select-none text-slate-300">
+                    <input type="checkbox" id="opt_product_name" checked class="rounded bg-[#0F172A] border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                    Include Product Name
+                </label>
+
+                <label class="flex items-center gap-2 text-xs cursor-pointer select-none text-slate-300">
+                    <input type="checkbox" id="opt_price" checked class="rounded bg-[#0F172A] border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                    Include Selling Price (KES {{ product.selling_price|floatformat:2 }})
+                </label>
+
+                <label class="flex items-center gap-2 text-xs cursor-pointer select-none text-slate-300">
+                    <input type="checkbox" id="opt_sku_text" checked class="rounded bg-[#0F172A] border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                    Include Text under Barcode
+                </label>
+            </div>
+        </div>
+
+        <button id="btn_trigger_print" class="mt-4 w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold text-xs transition-colors flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+            </svg>
+            PRINT LABELS
+        </button>
+    </div>
+
+    <!-- Live Preview (Right Column) -->
+    <div class="card lg:flex-1 p-5 flex flex-col gap-4 bg-[#1E293B] border border-slate-800 text-slate-100">
+        <h3 class="text-white font-bold text-base border-b border-slate-800 pb-2">Live Preview</h3>
+        <div class="flex-1 flex items-center justify-center p-8 bg-[#0F172A] rounded border border-slate-800">
+            <!-- Simulated Label Container -->
+            <div id="preview_container" class="bg-white text-black p-3 shadow-md border border-gray-300 rounded flex flex-col items-center justify-center font-sans" style="width: 250px; height: 150px;">
+                <div id="prev_store" class="text-[9px] font-bold uppercase tracking-wider text-center max-w-full truncate"></div>
+                <div id="prev_name" class="text-[10px] font-semibold text-center mt-0.5 max-w-full truncate"></div>
+                <svg id="preview_barcode_svg" class="max-w-full"></svg>
+                <div id="prev_price" class="text-xs font-bold mt-0.5 text-center"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Print Output Container (Hidden in screen view via no-print class logic) -->
+<div id="print_output_container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+<style type="text/css">
+    /* Screen View Styles */
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .gap-6 { gap: 24px; }
+    .gap-5 { gap: 20px; }
+    .gap-3 { gap: 12px; }
+    .gap-2 { gap: 8px; }
+    .p-5 { padding: 20px; }
+    .p-8 { padding: 32px; }
+    .card { border-radius: 12px; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Hide print output on screen */
+    #print_output_container {
+        display: none;
+    }
+
+    /* Print View Styles */
+    @media print {
+        header, aside, .dash-topbar, .no-print, .messages {
+            display: none !important;
+        }
+        body, .dash-main, .dash-content {
+            background: white !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        #print_output_container {
+            display: block !important;
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* ── Continuous Roll Layouts ── */
+        .print-roll-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: white;
+            color: black;
+            box-sizing: border-box;
+            page-break-after: always;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        /* ── A4 Sheet Layout ── */
+        .print-sheet-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2mm 3.5mm; /* Custom alignment spacing for A4 sheet */
+            padding: 10mm;
+            box-sizing: border-box;
+            background: white;
+        }
+        
+        .print-sheet-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #ddd; /* Light cut lines for standard paper */
+            height: 27mm;
+            box-sizing: border-box;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, sans-serif;
+            text-align: center;
+            padding: 2mm;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const barcodeVal = "{{ product.barcode|default:product.sku }}";
+        const storeName = "{{ tenant.name|escapejs }}";
+        const productName = "{{ product.name|escapejs }}";
+        const productPrice = "KES {{ product.selling_price|floatformat:2 }}";
+
+        // DOM inputs
+        const formatSelect = document.getElementById('label_format');
+        const qtyInput = document.getElementById('label_quantity');
+        const optStore = document.getElementById('opt_store_name');
+        const optName = document.getElementById('opt_product_name');
+        const optPrice = document.getElementById('opt_price');
+        const optSku = document.getElementById('opt_sku_text');
+
+        // Trigger elements
+        const previewContainer = document.getElementById('preview_container');
+        const printBtn = document.getElementById('btn_trigger_print');
+        const printOutput = document.getElementById('print_output_container');
+
+        // Update Live Preview
+        function updatePreview() {
+            // Render store name
+            const storeDiv = document.getElementById('prev_store');
+            if (optStore.checked) {
+                storeDiv.textContent = storeName;
+                storeDiv.style.display = 'block';
+            } else {
+                storeDiv.style.display = 'none';
+            }
+
+            // Render product name
+            const nameDiv = document.getElementById('prev_name');
+            if (optName.checked) {
+                nameDiv.textContent = productName;
+                nameDiv.style.display = 'block';
+            } else {
+                nameDiv.style.display = 'none';
+            }
+
+            // Render price
+            const priceDiv = document.getElementById('prev_price');
+            if (optPrice.checked) {
+                priceDiv.textContent = productPrice;
+                priceDiv.style.display = 'block';
+            } else {
+                priceDiv.style.display = 'none';
+            }
+
+            // Render Barcode image
+            JsBarcode("#preview_barcode_svg", barcodeVal, {
+                format: "CODE128",
+                width: 1.5,
+                height: 40,
+                displayValue: optSku.checked,
+                fontSize: 10,
+                margin: 4
+            });
+
+            // Adjust simulated preview frame size for size aspect ratios
+            const format = formatSelect.value;
+            if (format === 'roll_50_30') {
+                previewContainer.style.width = '250px';
+                previewContainer.style.height = '150px';
+            } else if (format === 'roll_38_25') {
+                previewContainer.style.width = '190px';
+                previewContainer.style.height = '125px';
+            } else {
+                // A4 Simulation
+                previewContainer.style.width = '240px';
+                previewContainer.style.height = '130px';
+            }
+        }
+
+        // Attach listeners to all inputs
+        [formatSelect, qtyInput, optStore, optName, optPrice, optSku].forEach(input => {
+            input.addEventListener('change', updatePreview);
+            input.addEventListener('input', updatePreview);
+        });
+
+        // Setup Printable Containers dynamically based on config values
+        function preparePrintOutput() {
+            printOutput.innerHTML = ''; // Clear previous
+
+            const format = formatSelect.value;
+            const quantity = parseInt(qtyInput.value) || 1;
+            
+            // Build dynamic styles block for @page constraints
+            let styleBlock = document.getElementById('print_page_styles');
+            if (!styleBlock) {
+                styleBlock = document.createElement('style');
+                styleBlock.id = 'print_page_styles';
+                document.head.appendChild(styleBlock);
+            }
+
+            if (format.startsWith('roll_')) {
+                // Set @page dimensions to fit thermal rolls
+                const sizeMap = {
+                    'roll_50_30': { w: '50mm', h: '30mm', labelClass: 'label-50-30' },
+                    'roll_38_25': { w: '38mm', h: '25mm', labelClass: 'label-38-25' }
+                };
+                const config = sizeMap[format];
+                
+                styleBlock.innerHTML = `
+                    @media print {
+                        @page {
+                            size: ${config.w} ${config.h};
+                            margin: 0;
+                        }
+                        .print-roll-label {
+                            width: ${config.w};
+                            height: ${config.h};
+                            padding: 1mm 2mm;
+                        }
+                    }
+                `;
+
+                // Render roll elements sequentially
+                for (let i = 0; i < quantity; i++) {
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'print-roll-label';
+                    
+                    if (optStore.checked) {
+                        const store = document.createElement('div');
+                        store.style = 'font-size: 8px; font-weight: bold; margin-bottom: 0.5mm; text-transform: uppercase;';
+                        store.textContent = storeName;
+                        labelDiv.appendChild(store);
+                    }
+
+                    if (optName.checked) {
+                        const name = document.createElement('div');
+                        name.style = 'font-size: 9px; font-weight: 600; overflow: hidden; white-space: nowrap; width: 100%; text-overflow: ellipsis;';
+                        name.textContent = productName;
+                        labelDiv.appendChild(name);
+                    }
+
+                    const barcodeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    barcodeSvg.className = `print-barcode-svg-${i}`;
+                    labelDiv.appendChild(barcodeSvg);
+
+                    if (optPrice.checked) {
+                        const price = document.createElement('div');
+                        price.style = 'font-size: 10px; font-weight: bold; margin-top: 0.5mm;';
+                        price.textContent = productPrice;
+                        labelDiv.appendChild(price);
+                    }
+
+                    printOutput.appendChild(labelDiv);
+
+                    // Initialize Barcode SVG
+                    JsBarcode(`.print-barcode-svg-${i}`, barcodeVal, {
+                        format: "CODE128",
+                        width: format === 'roll_38_25' ? 1.0 : 1.2,
+                        height: format === 'roll_38_25' ? 22 : 30,
+                        displayValue: optSku.checked,
+                        fontSize: 8,
+                        margin: 2
+                    });
+                }
+
+            } else {
+                // A4 Sheet Layout (30 labels per page)
+                styleBlock.innerHTML = `
+                    @media print {
+                        @page {
+                            size: A4 portrait;
+                            margin: 0;
+                        }
+                    }
+                `;
+
+                const gridContainer = document.createElement('div');
+                gridContainer.className = 'print-sheet-grid';
+                printOutput.appendChild(gridContainer);
+
+                for (let i = 0; i < quantity; i++) {
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'print-sheet-label';
+
+                    if (optStore.checked) {
+                        const store = document.createElement('div');
+                        store.style = 'font-size: 8px; font-weight: bold; margin-bottom: 0.5mm; text-transform: uppercase;';
+                        store.textContent = storeName;
+                        labelDiv.appendChild(store);
+                    }
+
+                    if (optName.checked) {
+                        const name = document.createElement('div');
+                        name.style = 'font-size: 9px; font-weight: 600; overflow: hidden; white-space: nowrap; width: 100%; text-overflow: ellipsis;';
+                        name.textContent = productName;
+                        labelDiv.appendChild(name);
+                    }
+
+                    const barcodeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    barcodeSvg.className = `print-barcode-svg-${i}`;
+                    labelDiv.appendChild(barcodeSvg);
+
+                    if (optPrice.checked) {
+                        const price = document.createElement('div');
+                        price.style = 'font-size: 9px; font-weight: bold; margin-top: 0.5mm;';
+                        price.textContent = productPrice;
+                        labelDiv.appendChild(price);
+                    }
+
+                    gridContainer.appendChild(labelDiv);
+
+                    // Initialize Barcode SVG
+                    JsBarcode(`.print-barcode-svg-${i}`, barcodeVal, {
+                        format: "CODE128",
+                        width: 1.1,
+                        height: 25,
+                        displayValue: optSku.checked,
+                        fontSize: 8,
+                        margin: 2
+                    });
+                }
+            }
+        }
+
+        printBtn.addEventListener('click', function() {
+            preparePrintOutput();
+            // Trigger browser print dialog
+            window.print();
+        });
+
+        // Run initial preview load
+        updatePreview();
+    });
+</script>
+{% endblock %}

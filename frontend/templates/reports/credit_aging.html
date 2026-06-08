@@ -1,0 +1,163 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Trade Receivables — Sajiir POS{% endblock %}
+{% block page_title %}Trade Receivables{% endblock %}
+{% block breadcrumb %}Dashboard / Reports / Credit Aging{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+<ul class="messages" style="margin-bottom:20px;">
+  {% for message in messages %}
+  <li class="{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{# ── Summary KPI strip ───────────────────────────────────────────── #}
+<div class="kpi-grid" style="grid-template-columns:repeat(5,1fr); margin-bottom:24px;">
+  <div class="kpi">
+    <div class="kpi-label">Total Outstanding</div>
+    <div class="kpi-value" style="color:var(--error);">{{ request.tenant.currency }} {{ totals.balance|floatformat:0 }}</div>
+    <div class="kpi-sub">All customers</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Current (0–30 days)</div>
+    <div class="kpi-value" style="color:var(--success);">{{ totals.current|floatformat:0 }}</div>
+    <div class="kpi-sub">Low risk</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">31–60 Days</div>
+    <div class="kpi-value" style="color:var(--warning);">{{ totals.d31_60|floatformat:0 }}</div>
+    <div class="kpi-sub">Monitor</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">61–90 Days</div>
+    <div class="kpi-value" style="color:#f97316;">{{ totals.d61_90|floatformat:0 }}</div>
+    <div class="kpi-sub">Follow up</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">90+ Days</div>
+    <div class="kpi-value" style="color:var(--error);">{{ totals.over_90|floatformat:0 }}</div>
+    <div class="kpi-sub">High risk</div>
+  </div>
+</div>
+
+{# ── Aging table ─────────────────────────────────────────────────── #}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div>
+      <div class="card-title">Customer Credit Aging Schedule</div>
+      <div class="card-subtitle">Outstanding balances grouped by age of debt</div>
+    </div>
+  </div>
+
+  {% if aging_rows %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Phone</th>
+          <th style="text-align:right;">Credit Limit</th>
+          <th style="text-align:right;">Total Balance</th>
+          <th style="text-align:right;">0–30 Days</th>
+          <th style="text-align:right;">31–60 Days</th>
+          <th style="text-align:right;">61–90 Days</th>
+          <th style="text-align:right;">&gt;90 Days</th>
+          <th style="text-align:center;">Risk</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in aging_rows %}
+        {% with utilisation=row.balance|floatformat:0 %}
+        <tr>
+          <td style="font-weight:600; color:var(--text);">{{ row.name }}</td>
+          <td>{{ row.phone|default:"—" }}</td>
+          <td style="text-align:right;">{{ row.credit_limit|floatformat:2 }}</td>
+          <td style="text-align:right; font-weight:700; color:var(--error);">{{ row.balance|floatformat:2 }}</td>
+          <td style="text-align:right; color:var(--success);">{{ row.current|floatformat:2 }}</td>
+          <td style="text-align:right; color:var(--warning);">{{ row.d31_60|floatformat:2 }}</td>
+          <td style="text-align:right; color:#f97316;">{{ row.d61_90|floatformat:2 }}</td>
+          <td style="text-align:right; color:var(--error);">{{ row.over_90|floatformat:2 }}</td>
+          <td style="text-align:center;">
+            {% if row.over_90 > 0 %}
+              <span class="badge badge-red">High</span>
+            {% elif row.d61_90 > 0 %}
+              <span class="badge badge-amber">Medium</span>
+            {% else %}
+              <span class="badge badge-green">Low</span>
+            {% endif %}
+          </td>
+          <td>
+            {# Inline mini-form to record a repayment #}
+            <button onclick="document.getElementById('pay-modal-{{ row.id }}').style.display='flex'"
+                    class="btn-primary" style="padding:5px 12px; font-size:12px;">
+              Record Payment
+            </button>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid var(--border);">
+          <td colspan="3" style="font-weight:700; color:var(--text);">TOTALS</td>
+          <td style="text-align:right; font-weight:800; color:var(--error);">{{ totals.balance|floatformat:2 }}</td>
+          <td style="text-align:right; color:var(--success);">{{ totals.current|floatformat:2 }}</td>
+          <td style="text-align:right; color:var(--warning);">{{ totals.d31_60|floatformat:2 }}</td>
+          <td style="text-align:right; color:#f97316;">{{ totals.d61_90|floatformat:2 }}</td>
+          <td style="text-align:right; color:var(--error);">{{ totals.over_90|floatformat:2 }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  {# ── Payment modals ───────────────────────────────────────────── #}
+  {% for row in aging_rows %}
+  <div id="pay-modal-{{ row.id }}"
+       style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
+              z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px;
+                padding:32px; width:420px; position:relative;">
+      <button onclick="document.getElementById('pay-modal-{{ row.id }}').style.display='none'"
+              style="position:absolute; top:16px; right:16px; background:none; border:none;
+                     color:var(--faint); font-size:20px; cursor:pointer;">✕</button>
+      <div style="font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px;">
+        Record Payment — {{ row.name }}
+      </div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:24px;">
+        Outstanding balance: <strong style="color:var(--error);">KES {{ row.balance|floatformat:2 }}</strong>
+      </div>
+      <form method="post" action="{% url 'record_credit_payment' row.id %}">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Amount Received (KES)</label>
+          <input type="number" name="amount" step="0.01" min="0.01"
+                 max="{{ row.balance }}" placeholder="0.00" required>
+        </div>
+        <div class="form-group">
+          <label>Reference (M-Pesa code / bank ref)</label>
+          <input type="text" name="reference" placeholder="e.g. QH4R7XAMPLE">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea name="notes" rows="2" placeholder="Optional notes"></textarea>
+        </div>
+        <button type="submit" class="btn-primary" style="width:100%;">Confirm Payment</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <div style="text-align:center; padding:60px 20px; color:var(--faint);">
+    <div style="font-size:48px; margin-bottom:16px;">✅</div>
+    <div style="font-size:16px; font-weight:600; color:var(--muted);">No Outstanding Credit Balances</div>
+    <div style="font-size:13px; margin-top:8px;">All customers are fully settled.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

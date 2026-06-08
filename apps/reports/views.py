@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.utils import timezone
+from django.db.models import Sum, Q
+from django.http import HttpResponse
+import csv
 from datetime import datetime
 
 from apps.tenants.permissions import IsCashier
@@ -129,11 +132,8 @@ class ETIMSCockpitView(_BaseReportView):
         if err:
             return err
         
-        from django.db.models import Sum, Q
         from apps.sales.models import Sale
-        import csv
-        from django.http import HttpResponse
-        
+
         sales = Sale.objects.filter(
             branch=branch,
             created_at__date__gte=start_date,

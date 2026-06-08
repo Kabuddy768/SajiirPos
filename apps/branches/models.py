@@ -17,6 +17,18 @@ class Branch(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     etims_branch_code = models.CharField(max_length=50, blank=True)
     etims_device_serial = models.CharField(max_length=100, blank=True)
+    
+    # M-Pesa Daraja Settings (per branch)
+    mpesa_env = models.CharField(
+        max_length=20,
+        choices=[('sandbox', 'Sandbox'), ('production', 'Production')],
+        default='sandbox'
+    )
+    mpesa_shortcode = models.CharField(max_length=50, blank=True)
+    mpesa_consumer_key = models.CharField(max_length=255, blank=True)
+    mpesa_consumer_secret = models.CharField(max_length=255, blank=True)
+    mpesa_passkey = models.CharField(max_length=255, blank=True)
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

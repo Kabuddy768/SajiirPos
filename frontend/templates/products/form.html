@@ -25,6 +25,12 @@
         </div>
         
         <div class="form-group">
+          <label for="{{ form.primary_supplier.id_for_label }}">{{ form.primary_supplier.label }}</label>
+          {{ form.primary_supplier }}
+          {% if form.primary_supplier.errors %}<div class="field-error">{{ form.primary_supplier.errors.0 }}</div>{% endif %}
+        </div>
+        
+        <div class="form-group">
           <label for="{{ form.sku.id_for_label }}">{{ form.sku.label }}</label>
           {{ form.sku }}
           {% if form.sku.errors %}<div class="field-error">{{ form.sku.errors.0 }}</div>{% endif %}

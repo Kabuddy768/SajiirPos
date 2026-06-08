@@ -1,0 +1,420 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sajiir POS — Smart Retail Management for Kenyan Businesses</title>
+  <meta name="description" content="Sajiir POS is a cloud-based Point of Sale and retail management platform built for Kenyan businesses. Manage inventory, staff, suppliers, and KRA eTIMS compliance — all in one place."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #050714;
+      --surface: #0d1117;
+      --card: #111827;
+      --border: rgba(255,255,255,0.07);
+      --primary: #6366f1;
+      --primary-glow: rgba(99,102,241,0.25);
+      --accent: #10b981;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --faint: #475569;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 40px;
+      background: rgba(5,7,20,0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo-icon {
+      width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    }
+    .nav-logo-icon span { color: #fff; font-weight: 800; font-size: 16px; }
+    .nav-brand { color: var(--text); font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { display: flex; gap: 12px; align-items: center; }
+    .btn-ghost { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 8px; transition: all 0.2s; }
+    .btn-ghost:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; text-decoration: none; font-size: 14px; font-weight: 600;
+      padding: 9px 20px; border-radius: 8px;
+      box-shadow: 0 0 20px var(--primary-glow);
+      transition: all 0.2s; border: none; cursor: pointer;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 30px var(--primary-glow); }
+    .btn-large { font-size: 16px; padding: 14px 32px; border-radius: 12px; }
+    .btn-outline {
+      color: var(--text); text-decoration: none; font-size: 16px; font-weight: 600;
+      padding: 14px 32px; border-radius: 12px; border: 1px solid var(--border);
+      transition: all 0.2s; display: inline-block;
+    }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-glow); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      text-align: center; padding: 120px 24px 80px; position: relative;
+    }
+    .hero-glow {
+      position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+      width: 700px; height: 500px;
+      background: radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 100px; padding: 6px 16px; font-size: 13px; font-weight: 500;
+      color: #a5b4fc; margin-bottom: 28px;
+    }
+    .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #6366f1; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    h1 {
+      font-size: clamp(40px, 6vw, 72px); font-weight: 900; line-height: 1.1;
+      letter-spacing: -2px; margin-bottom: 24px;
+    }
+    h1 .gradient-text {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-sub {
+      font-size: 18px; color: var(--muted); max-width: 580px; margin: 0 auto 40px;
+      font-weight: 400; line-height: 1.7;
+    }
+    .hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .hero-social-proof {
+      margin-top: 64px; display: flex; align-items: center; justify-content: center;
+      gap: 32px; color: var(--faint); font-size: 13px;
+    }
+    .stat-item { text-align: center; }
+    .stat-num { font-size: 28px; font-weight: 800; color: var(--text); display: block; }
+
+    /* ── Section ── */
+    section { padding: 80px 24px; position: relative; z-index: 1; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--primary); margin-bottom: 12px;
+    }
+    .section-title { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
+    .section-sub { color: var(--muted); font-size: 17px; max-width: 520px; line-height: 1.7; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ── Features Grid ── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 56px; }
+    .feature-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; transition: all 0.3s;
+    }
+    .feature-card:hover { border-color: rgba(99,102,241,0.3); transform: translateY(-2px); box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center;
+      justify-content: center; margin-bottom: 20px; font-size: 22px;
+    }
+    .feature-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+    .feature-card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+    /* ── Pricing ── */
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 56px; }
+    .plan-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px; position: relative; transition: all 0.3s;
+    }
+    .plan-card.featured {
+      border-color: var(--primary);
+      box-shadow: 0 0 40px rgba(99,102,241,0.15);
+    }
+    .plan-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 4px 14px; border-radius: 100px;
+    }
+    .plan-name { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+    .plan-price { font-size: 42px; font-weight: 900; letter-spacing: -2px; margin-bottom: 4px; }
+    .plan-price span { font-size: 16px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+    .plan-desc { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    .plan-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .plan-features li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+    .plan-features li .check { color: var(--accent); font-size: 16px; flex-shrink: 0; }
+    .plan-features li.locked { opacity: 0.4; }
+    .plan-features li.locked .check { color: var(--faint); }
+
+    /* ── CTA Banner ── */
+    .cta-banner {
+      background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
+      border: 1px solid rgba(99,102,241,0.2); border-radius: 24px;
+      padding: 64px 40px; text-align: center;
+    }
+    .cta-banner h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
+    .cta-banner p { color: var(--muted); font-size: 17px; max-width: 500px; margin: 0 auto 36px; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border); padding: 40px 40px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: gap;
+      color: var(--faint); font-size: 13px;
+    }
+    footer a { color: var(--faint); text-decoration: none; }
+    footer a:hover { color: var(--muted); }
+
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      section { padding: 60px 20px; }
+      footer { flex-direction: column; gap: 16px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────────────────── -->
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon"><span>S</span></div>
+    <span class="nav-brand">Sajiir POS</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="mailto:support@sajiirpos.com">Support</a>
+  </div>
+  <div class="nav-cta">
+    <a href="/login/" class="btn-ghost">Sign In</a>
+    <a href="/register/" class="btn-primary">Start Free Trial</a>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div style="position:relative; z-index:1;">
+    <div class="hero-badge">
+      <div class="dot"></div>
+      Built for Kenyan Retail Businesses
+    </div>
+    <h1>
+      The Smart POS for<br/>
+      <span class="gradient-text">Growing Businesses</span>
+    </h1>
+    <p class="hero-sub">
+      Manage your sales, stock, staff, and suppliers — with built-in KRA eTIMS compliance,
+      offline-first capability, and real-time reporting. All in one place.
+    </p>
+    <div class="hero-actions">
+      <a href="/register/" class="btn-primary btn-large">Start Free 14-Day Trial</a>
+      <a href="#features" class="btn-outline">See How It Works</a>
+    </div>
+    <div class="hero-social-proof">
+      <div class="stat-item">
+        <span class="stat-num">100%</span>
+        KRA eTIMS Ready
+      </div>
+      <div style="width:1px; height:40px; background:var(--border);"></div>
+      <div class="stat-item">
+        <span class="stat-num">Offline</span>
+        First Architecture
+      </div>
+      <div style="width:1px; height:40px; background:var(--border);"></div>
+      <div class="stat-item">
+        <span class="stat-num">Multi</span>
+        Branch Support
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── Features ─────────────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <p class="section-label">Platform Features</p>
+    <h2 class="section-title">Everything you need to run your store</h2>
+    <p class="section-sub">From the till to the boardroom — Sajiir gives every team member exactly what they need.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(99,102,241,0.15);">🛒</div>
+        <h3>Offline-First POS Till</h3>
+        <p>Keep selling even when the internet goes down. Transactions sync automatically when connectivity is restored — no lost sales, ever.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(16,185,129,0.15);">📦</div>
+        <h3>Smart Inventory Management</h3>
+        <p>Track stock across multiple branches, set reorder points, manage batch/expiry dates, and get automated low-stock alerts via WhatsApp.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(245,158,11,0.15);">🏭</div>
+        <h3>Supplier & Purchasing</h3>
+        <p>Record Goods Received Notes, manage credit vs. cash purchases, track payables aging, and reorder directly from the supplier dashboard.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(239,68,68,0.15);">🧾</div>
+        <h3>KRA eTIMS Compliance</h3>
+        <p>Every invoice is automatically signed and submitted to KRA in the background. Track submission status, retry failures, and audit your eTIMS history.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(139,92,246,0.15);">📊</div>
+        <h3>Profit & Loss Reporting</h3>
+        <p>See your revenue, cost of sales, gross margin, and net profit for any period. Break down expenses by category to find where money is going.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(6,182,212,0.15);">👥</div>
+        <h3>Multi-Branch Staff Management</h3>
+        <p>Invite staff by email, assign roles (Owner, Admin, Manager, Cashier, Auditor), and control access per branch. Monitor performance and flag anomalies.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(251,146,60,0.15);">💳</div>
+        <h3>Customer Loyalty & Credit</h3>
+        <p>Build repeat business with a points-based loyalty program. Offer credit sales to trusted customers with configurable limits and aging reports.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(236,72,153,0.15);">↩️</div>
+        <h3>Returns & Refunds</h3>
+        <p>Process full or partial returns against any sale. Inventory is automatically restocked. Refunds above KES 5,000 require manager approval.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(16,185,129,0.15);">📱</div>
+        <h3>WhatsApp Receipts & Reorders</h3>
+        <p>Send customer receipts via WhatsApp in one click. Auto-compose reorder messages directly to suppliers when stock hits the reorder threshold.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── Pricing ───────────────────────────────────────────────────────── -->
+<section id="pricing">
+  <div class="container">
+    <p class="section-label">Simple Pricing</p>
+    <h2 class="section-title">Choose the plan that fits your business</h2>
+    <p class="section-sub">Start free. Upgrade as you grow. No hidden fees. All prices are monthly and in KES.</p>
+
+    <div class="pricing-grid">
+
+      <!-- Starter -->
+      <div class="plan-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price">KES 2,500<span>/mo</span></div>
+        <div class="plan-desc">Perfect for a single-location shop getting started.</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> 1 Branch</li>
+          <li><span class="check">✓</span> Up to 5 Staff</li>
+          <li><span class="check">✓</span> Offline POS Till</li>
+          <li><span class="check">✓</span> Inventory Management</li>
+          <li><span class="check">✓</span> Supplier & GRN Tracking</li>
+          <li><span class="check">✓</span> Sales History (30 days)</li>
+          <li><span class="check">✓</span> Basic P&amp;L Report</li>
+          <li class="locked"><span class="check">✗</span> eTIMS Integration</li>
+          <li class="locked"><span class="check">✗</span> Inter-Branch Transfers</li>
+          <li class="locked"><span class="check">✗</span> WhatsApp Receipts</li>
+        </ul>
+        <a href="/register/?plan=starter" class="btn-outline" style="display:block; text-align:center; font-size:15px; padding:12px;">Get Started Free</a>
+      </div>
+
+      <!-- Pro (Featured) -->
+      <div class="plan-card featured">
+        <div class="plan-badge">Most Popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">KES 6,500<span>/mo</span></div>
+        <div class="plan-desc">For growing businesses with multiple staff or locations.</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Up to 3 Branches</li>
+          <li><span class="check">✓</span> Up to 15 Staff</li>
+          <li><span class="check">✓</span> Everything in Starter</li>
+          <li><span class="check">✓</span> KRA eTIMS Compliance</li>
+          <li><span class="check">✓</span> Inter-Branch Stock Transfers</li>
+          <li><span class="check">✓</span> WhatsApp Receipts & Reorders</li>
+          <li><span class="check">✓</span> Full P&amp;L + Credit Aging Reports</li>
+          <li><span class="check">✓</span> Customer Loyalty Program</li>
+          <li><span class="check">✓</span> Staff Performance Monitoring</li>
+          <li><span class="check">✓</span> 365-Day Sales History</li>
+        </ul>
+        <a href="/register/?plan=pro" class="btn-primary btn-large" style="display:block; text-align:center;">Start Pro Trial</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="plan-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-price" style="font-size:32px;">Custom<span style="font-size:14px;"> pricing</span></div>
+        <div class="plan-desc">For supermarket chains, distributors, and franchises.</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Unlimited Branches</li>
+          <li><span class="check">✓</span> Unlimited Staff</li>
+          <li><span class="check">✓</span> Everything in Pro</li>
+          <li><span class="check">✓</span> Dedicated Onboarding</li>
+          <li><span class="check">✓</span> Priority Support (SLA)</li>
+          <li><span class="check">✓</span> Custom Domain Support</li>
+          <li><span class="check">✓</span> Data Export (Excel/CSV)</li>
+          <li><span class="check">✓</span> API Access</li>
+        </ul>
+        <a href="mailto:sales@sajiirpos.com?subject=Enterprise Enquiry" class="btn-outline" style="display:block; text-align:center; font-size:15px; padding:12px;">Contact Sales</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── CTA Banner ────────────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="cta-banner">
+      <h2>Ready to modernise your business?</h2>
+      <p>Join hundreds of Kenyan retailers who use Sajiir POS to manage their stores smarter, faster, and with full KRA compliance.</p>
+      <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+        <a href="/register/" class="btn-primary btn-large">Start Your Free 14-Day Trial</a>
+        <a href="mailto:support@sajiirpos.com" class="btn-outline">Talk to Us</a>
+      </div>
+      <p style="margin-top:20px; font-size:13px; color:var(--faint);">No credit card required to start. Cancel anytime.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────── -->
+<footer>
+  <div>
+    <strong style="color:var(--text);">Sajiir POS</strong> &nbsp;·&nbsp;
+    Built in Kenya, for Kenya
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
+    <a href="mailto:support@sajiirpos.com">support@sajiirpos.com</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#features">Features</a>
+    <a href="/login/">Sign In</a>
+  </div>
+  <div>© 2025 Sajiir POS. All rights reserved.</div>
+</footer>
+
+</body>
+</html>

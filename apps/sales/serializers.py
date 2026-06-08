@@ -48,8 +48,8 @@ class CartItemSerializer(serializers.Serializer):
 class PaymentInputSerializer(serializers.Serializer):
     method = serializers.CharField()
     amount = serializers.DecimalField(max_digits=12, decimal_places=2)
-    mpesa_phone = serializers.CharField(required=False, allow_blank=True)
-    card_reference = serializers.CharField(required=False, allow_blank=True)
+    mpesa_phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    card_reference = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 class SaleCreateSerializer(serializers.Serializer):
     session_id = serializers.IntegerField()

@@ -1,0 +1,80 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Suppliers — Sajiir POS{% endblock %}
+{% block page_title %}Supplier Registry{% endblock %}
+{% block breadcrumb %}Dashboard / Suppliers{% endblock %}
+
+{% block topbar_actions %}
+{% if user_role in 'owner admin manager' %}
+<a href="{% url 'supplier_create' %}" class="btn-primary">+ Add New Supplier</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+<ul class="messages" style="margin-bottom:20px;">
+  {% for message in messages %}
+  <li class="{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div>
+      <div class="card-title">Manage Suppliers</div>
+      <div class="card-subtitle">View and edit supplier registry and contact information</div>
+    </div>
+  </div>
+
+  {% if suppliers %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Supplier Name</th>
+          <th>Contact Person</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>KRA PIN</th>
+          <th style="text-align:right;">Outstanding Owed</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in suppliers %}
+        <tr>
+          <td style="font-weight:600; color:var(--text);">{{ s.name }}</td>
+          <td>{{ s.contact_person|default:"—" }}</td>
+          <td>{{ s.email|default:"—" }}</td>
+          <td>{{ s.phone|default:"—" }}</td>
+          <td><code style="font-family:monospace; background:var(--border); padding:2px 6px; border-radius:4px;">{{ s.kra_pin|default:"—" }}</code></td>
+          <td style="text-align:right; font-weight:700; {% if s.current_payable_balance > 0 %}color:var(--error);{% else %}color:var(--success);{% endif %}">
+            {{ request.tenant.currency }} {{ s.current_payable_balance|floatformat:2 }}
+          </td>
+          <td>
+            <div style="display:flex; gap:8px;">
+              <a href="{% url 'supplier_update' s.id %}" class="btn-secondary" style="padding:4px 10px; font-size:12px;">Edit</a>
+              {% if user_role in 'owner admin' %}
+              <form method="post" action="{% url 'supplier_delete' s.id %}" onsubmit="return confirm('Are you sure you want to delete this supplier?');" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-logout" style="padding:4px 10px; font-size:12px; height:auto; margin:0;">Delete</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:60px 20px; color:var(--faint);">
+    <div style="font-size:48px; margin-bottom:16px;">🏪</div>
+    <div style="font-size:16px; font-weight:600; color:var(--muted);">No Suppliers Found</div>
+    <div style="font-size:13px; margin-top:8px;">Click "+ Add New Supplier" above to populate your supplier registry.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
